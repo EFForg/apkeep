@@ -1,0 +1,16 @@
+[package]
+name = "download-top-x-apks"
+version = "0.1.0"
+authors = ["William Budington <bill@eff.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", features = ["stream"] }
+bytes = "^0.5"
+futures-util = { version = "0.3", features = ["io"] }
+thirtyfour = "0.23"
+serde_json = "1.0"
+regex = "1.4"
