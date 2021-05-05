@@ -1,36 +1,53 @@
+#[macro_use]
+extern crate clap;
+
+use clap::{Arg, App};
 use futures_util::StreamExt;
 use regex::Regex;
 use serde_json::json;
-use std::env;
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
 use thirtyfour::prelude::*;
 
-fn help_message_and_exit(program_name: &str, status_code: i32) -> String {
-    println!("Usage: {} OUTPATH", program_name);
-    std::process::exit(status_code);
+arg_enum! {
+    #[derive(Debug)]
+    pub enum Source {
+        AndroidRank,
+        ISDi,
+    }
 }
 
-async fn fetch_ar_list() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let resp = reqwest::get("https://www.androidrank.org/applist.csv")
-        .await?
-        .error_for_status()?
-        .text()
-        .await?;
+async fn fetch_list(source: &Source) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let resp = match source {
+        &Source::AndroidRank => reqwest::get("https://www.androidrank.org/applist.csv"),
+        &Source::ISDi => reqwest::get("https://raw.githubusercontent.com/stopipv/isdi/master/static_data/app-flags.csv"),
+    }.await?
+     .error_for_status()?
+     .text()
+     .await?;
 
     Ok(resp.split("\n").filter_map(|l| {
         let entry = l.trim();
         let mut entry_vec = entry.split(",").collect::<Vec<&str>>();
-        if entry_vec.len() > 1 {
-            Some(String::from(entry_vec.remove(0)))
+        if entry_vec.len() > 2 {
+            match source {
+                &Source::AndroidRank => Some(String::from(entry_vec.remove(0))),
+                &Source::ISDi => {
+                    let app_id = entry_vec.remove(0);
+                    match entry_vec.remove(0) {
+                        "playstore" => Some(String::from(app_id)),
+                        _ => None,
+                    }
+                },
+            }
         } else {
             None
         }
     }).collect())
 }
 
-async fn download_ar_apps(app_ids: Vec<String>, outpath: &str) -> WebDriverResult<()> {
+async fn download_apps(app_ids: Vec<String>, outpath: &str) -> WebDriverResult<()> {
     let fetches = futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
             async move {
@@ -55,7 +72,6 @@ async fn download_ar_apps(app_ids: Vec<String>, outpath: &str) -> WebDriverResul
                 }
             }
         })
-    //).buffer_unordered(4).filter_map(|i| i).collect::<Vec<(String, String, String)>>();
     ).buffer_unordered(4).filter_map(|i| i).collect::<Vec<(String, String, String)>>();
     println!("Waiting...");
     let results = fetches.await;
@@ -103,13 +119,28 @@ async fn download_single_app(app_id: &str, outpath: &str) -> WebDriverResult<(St
 
 #[tokio::main]
 async fn main() -> WebDriverResult<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        help_message_and_exit(&args[0], 1);
-    }
-    let outpath = &args[1];
+    let matches = App::new("Batch APK Downloader")
+	.author("William Budington <bill@eff.org>")
+	.about("Downloads APKs from various sources")
+        .arg(
+            Arg::with_name("source")
+                .help("Source of the apps list")
+                .short("s")
+                .long("source")
+                .takes_value(true)
+                .possible_values(&Source::variants())
+                .required(false),
+        )
+	.arg(Arg::with_name("OUTPUT")
+	    .help("An absolute path to store output files")
+	    .required(true)
+	    .index(1))
+	.get_matches();
 
-    let ar_list = fetch_ar_list().await.unwrap();
-    download_ar_apps(ar_list, outpath).await.unwrap();
+    let source = value_t!(matches.value_of("source"), Source).unwrap_or(Source::AndroidRank);
+    let outpath = matches.value_of("OUTPUT").unwrap();
+
+    let list = fetch_list(&source).await.unwrap();
+    download_apps(list, outpath).await.unwrap();
     Ok(())
 }
