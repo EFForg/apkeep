@@ -47,7 +47,7 @@ async fn fetch_list(source: &Source) -> Result<Vec<String>, Box<dyn std::error::
     }).collect())
 }
 
-async fn download_apps(app_ids: Vec<String>, outpath: &str) -> WebDriverResult<()> {
+async fn download_apps(app_ids: Vec<String>, processes: usize, outpath: &str) -> WebDriverResult<()> {
     let fetches = futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
             async move {
@@ -72,7 +72,7 @@ async fn download_apps(app_ids: Vec<String>, outpath: &str) -> WebDriverResult<(
                 }
             }
         })
-    ).buffer_unordered(4).filter_map(|i| i).collect::<Vec<(String, String, String)>>();
+    ).buffer_unordered(processes).filter_map(|i| i).collect::<Vec<(String, String, String)>>();
     println!("Waiting...");
     let results = fetches.await;
     for move_file in results {
@@ -107,12 +107,12 @@ async fn download_single_app(app_id: &str, outpath: &str) -> WebDriverResult<(St
         Err(_) => panic!("chromedriver must be running on port 4444")
     };
     let delay = Duration::new(10, 0);
-    driver.set_implicit_wait_timeout(delay).await?;
-    driver.get(app_url).await?;
-    let elem_result = driver.find_element(By::Css("span.file")).await?;
+    driver.set_implicit_wait_timeout(delay).await.unwrap();
+    driver.get(app_url).await.unwrap();
+    let elem_result = driver.find_element(By::Css("span.file")).await.unwrap();
     let re = Regex::new(r" \([0-9.]+ MB\)$").unwrap();
 
-    let new_filename = elem_result.text().await?;
+    let new_filename = elem_result.text().await.unwrap();
     let new_filename = re.replace(&new_filename, "").into_owned();
     Ok((filepath, new_filename, String::from(app_id)))
 }
@@ -131,6 +131,15 @@ async fn main() -> WebDriverResult<()> {
                 .possible_values(&Source::variants())
                 .required(false),
         )
+        .arg(
+            Arg::with_name("processes")
+                .help("The number of parallel APK fetches to run at a time")
+                .short("p")
+                .long("processes")
+                .takes_value(true)
+                .default_value("4")
+                .required(false),
+        )
 	.arg(Arg::with_name("OUTPUT")
 	    .help("An absolute path to store output files")
 	    .required(true)
@@ -138,9 +147,10 @@ async fn main() -> WebDriverResult<()> {
 	.get_matches();
 
     let source = value_t!(matches.value_of("source"), Source).unwrap_or(Source::AndroidRank);
+    let processes = value_t!(matches, "processes", usize).unwrap();
     let outpath = matches.value_of("OUTPUT").unwrap();
 
     let list = fetch_list(&source).await.unwrap();
-    download_apps(list, outpath).await.unwrap();
+    download_apps(list, processes, outpath).await.unwrap();
     Ok(())
 }
