@@ -107,12 +107,12 @@ async fn download_single_app(app_id: &str, outpath: &str) -> WebDriverResult<(St
         Err(_) => panic!("chromedriver must be running on port 4444")
     };
     let delay = Duration::new(10, 0);
-    driver.set_implicit_wait_timeout(delay).await.unwrap();
-    driver.get(app_url).await.unwrap();
-    let elem_result = driver.find_element(By::Css("span.file")).await.unwrap();
+    driver.set_implicit_wait_timeout(delay).await?;
+    driver.get(app_url).await?;
+    let elem_result = driver.find_element(By::Css("span.file")).await?;
     let re = Regex::new(r" \([0-9.]+ MB\)$").unwrap();
 
-    let new_filename = elem_result.text().await.unwrap();
+    let new_filename = elem_result.text().await?;
     let new_filename = re.replace(&new_filename, "").into_owned();
     Ok((filepath, new_filename, String::from(app_id)))
 }
