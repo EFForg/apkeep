@@ -9,6 +9,7 @@ use serde_json::json;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use thirtyfour::prelude::*;
 
@@ -58,11 +59,34 @@ async fn fetch_list(source: &ListSource) -> Result<Vec<String>, Box<dyn Error>> 
 async fn download_apps_from_google_play(app_ids: Vec<String>, processes: usize, username: &str, password: &str, outpath: &str) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
     gpa.login(username, password).await.expect("Could not log in to google play");
+    let gpa = Arc::new(Mutex::new(gpa));
 
     futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
-            println!("Downloading {}...", app_id);
-            gpa.download(app_id, None, &Path::new(outpath))
+            let gpa = Arc::clone(&gpa);
+            async move {
+                let gpa = gpa.lock().unwrap();
+                println!("Downloading {}...", app_id);
+                match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                    Ok(_) => Ok(()),
+                    Err(_) => {
+                        println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
+                        match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                            Ok(_) => Ok(()),
+                            Err(_) => {
+                                println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
+                                match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                                    Ok(_) => Ok(()),
+                                    Err(err) => {
+                                        println!("An error has occurred attempting to download {}.  Aborting.", app_id);
+                                        Err(err)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         })
     ).buffer_unordered(processes).collect::<Vec<Result<(), Box<dyn Error>>>>().await;
 }
