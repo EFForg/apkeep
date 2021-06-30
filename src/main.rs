@@ -3,6 +3,7 @@ extern crate clap;
 
 use clap::{App, Arg};
 use futures_util::StreamExt;
+use gpapi::error::{Error as GpapiError, ErrorKind};
 use gpapi::Gpapi;
 use regex::Regex;
 use serde_json::json;
@@ -69,6 +70,10 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, processes: usize, 
                 println!("Downloading {}...", app_id);
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
                     Ok(_) => Ok(()),
+                    Err(err) if matches!(err.kind(), ErrorKind::FileExists) => {
+                        println!("File alredy exists for {}.  Aborting.", app_id);
+                        Ok(())
+                    }
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                         match gpa.download(&app_id, None, &Path::new(outpath)).await {
