@@ -1,5 +1,5 @@
 [package]
-name = "batch-apk-downloader"
+name = "apk-downloader"
 version = "0.1.0"
 authors = ["William Budington <bill@eff.org>"]
 edition = "2018"

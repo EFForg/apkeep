@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate clap;
 
-use clap::{Arg, App};
+use clap::{App, Arg};
 use futures_util::StreamExt;
 use gpapi::Gpapi;
 use regex::Regex;
@@ -139,21 +139,27 @@ async fn download_single_app(app_id: &str, outpath: &str) -> WebDriverResult<(St
 
 #[tokio::main]
 async fn main() -> WebDriverResult<()> {
-    let matches = App::new("Batch APK Downloader")
+    let matches = App::new("APK Downloader")
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
-        .usage("batch-apk-downloader <OUTPUT> --download-source <download-source> --list-source <list-source> --processes <processes>")
+        .usage("apk-downloader <-a app_name | -l list_source> [--download-source download_source] [--processes processes] OUTPUT ")
         .arg(
-            Arg::with_name("list-source")
+            Arg::with_name("list_source")
                 .help("Source of the apps list")
                 .short("l")
                 .long("list-source")
-                .default_value("AndroidRank")
                 .takes_value(true)
-                .possible_values(&ListSource::variants())
-                .required(false))
+                .possible_values(&ListSource::variants()))
         .arg(
-            Arg::with_name("download-source")
+            Arg::with_name("app_name")
+                .help("Provide the name of an app directly")
+                .short("a")
+                .long("app-name")
+                .takes_value(true)
+                .conflicts_with("list-source")
+                .required_unless("list-source"))
+        .arg(
+            Arg::with_name("download_source")
                 .help("Where to download the APKs from")
                 .short("d")
                 .long("download-source")
@@ -162,14 +168,14 @@ async fn main() -> WebDriverResult<()> {
                 .possible_values(&DownloadSource::variants())
                 .required(false))
         .arg(
-            Arg::with_name("google-username")
+            Arg::with_name("google_username")
                 .help("Google Username (required if download source is Google Play)")
                 .short("u")
                 .long("username")
                 .takes_value(true)
                 .required_if("download-source", "GooglePlay"))
         .arg(
-            Arg::with_name("google-password")
+            Arg::with_name("google_password")
                 .help("Google App Password (required if download source is Google Play)")
                 .short("p")
                 .long("password")
@@ -189,19 +195,24 @@ async fn main() -> WebDriverResult<()> {
             .index(1))
         .get_matches();
 
-    let list_source = value_t!(matches.value_of("list-source"), ListSource).unwrap();
-    let download_source = value_t!(matches.value_of("download-source"), DownloadSource).unwrap();
+    let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
     let processes = value_t!(matches, "processes", usize).unwrap();
     let outpath = matches.value_of("OUTPUT").unwrap();
+    let list = match matches.value_of("app_name") {
+        Some(app_name) => vec![app_name.to_string()],
+        None => {
+            let list_source = value_t!(matches.value_of("list-source"), ListSource).unwrap();
+            fetch_list(&list_source).await.unwrap()
+        }
+    };
 
-    let list = fetch_list(&list_source).await.unwrap();
     match download_source {
         DownloadSource::APKPure => {
             download_apps_from_apkpure(list, processes, outpath).await.unwrap();
         },
         DownloadSource::GooglePlay => {
-            let username = matches.value_of("google-username").unwrap();
-            let password = matches.value_of("google-password").unwrap();
+            let username = matches.value_of("google_username").unwrap();
+            let password = matches.value_of("google_password").unwrap();
             download_apps_from_google_play(list, processes, username, password, outpath).await;
         },
     }
