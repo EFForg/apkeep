@@ -156,8 +156,8 @@ async fn main() -> WebDriverResult<()> {
                 .short("a")
                 .long("app-name")
                 .takes_value(true)
-                .conflicts_with("list-source")
-                .required_unless("list-source"))
+                .conflicts_with("list_source")
+                .required_unless("list_source"))
         .arg(
             Arg::with_name("download_source")
                 .help("Where to download the APKs from")
@@ -173,14 +173,14 @@ async fn main() -> WebDriverResult<()> {
                 .short("u")
                 .long("username")
                 .takes_value(true)
-                .required_if("download-source", "GooglePlay"))
+                .required_if("download_source", "GooglePlay"))
         .arg(
             Arg::with_name("google_password")
                 .help("Google App Password (required if download source is Google Play)")
                 .short("p")
                 .long("password")
                 .takes_value(true)
-                .required_if("download-source", "GooglePlay"))
+                .required_if("download_source", "GooglePlay"))
         .arg(
             Arg::with_name("processes")
                 .help("The number of parallel APK fetches to run at a time")
@@ -201,7 +201,7 @@ async fn main() -> WebDriverResult<()> {
     let list = match matches.value_of("app_name") {
         Some(app_name) => vec![app_name.to_string()],
         None => {
-            let list_source = value_t!(matches.value_of("list-source"), ListSource).unwrap();
+            let list_source = value_t!(matches.value_of("list_source"), ListSource).unwrap();
             fetch_list(&list_source).await.unwrap()
         }
     };
