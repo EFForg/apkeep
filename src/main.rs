@@ -10,7 +10,7 @@ use serde_json::json;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::rc::Rc;
 use std::time::Duration;
 use thirtyfour::prelude::*;
 
@@ -57,16 +57,15 @@ async fn fetch_list(source: &ListSource) -> Result<Vec<String>, Box<dyn Error>> 
     }).collect())
 }
 
-async fn download_apps_from_google_play(app_ids: Vec<String>, processes: usize, username: &str, password: &str, outpath: &str) {
+async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, username: &str, password: &str, outpath: &str) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
     gpa.login(username, password).await.expect("Could not log in to google play");
-    let gpa = Arc::new(Mutex::new(gpa));
+    let gpa = Rc::new(gpa);
 
     futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
-            let gpa = Arc::clone(&gpa);
+            let gpa = Rc::clone(&gpa);
             async move {
-                let gpa = gpa.lock().unwrap();
                 println!("Downloading {}...", app_id);
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
                     Ok(_) => Ok(()),
@@ -93,10 +92,10 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, processes: usize, 
                 }
             }
         })
-    ).buffer_unordered(processes).collect::<Vec<Result<(), Box<dyn Error>>>>().await;
+    ).buffer_unordered(parallel).collect::<Vec<Result<(), GpapiError>>>().await;
 }
 
-async fn download_apps_from_apkpure(app_ids: Vec<String>, processes: usize, outpath: &str) -> WebDriverResult<()> {
+async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, outpath: &str) -> WebDriverResult<()> {
     let fetches = futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
             async move {
@@ -121,7 +120,7 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, processes: usize, outp
                 }
             }
         })
-    ).buffer_unordered(processes).filter_map(|i| i).collect::<Vec<(String, String, String)>>();
+    ).buffer_unordered(parallel).filter_map(|i| i).collect::<Vec<(String, String, String)>>();
     println!("Waiting...");
     let results = fetches.await;
     for move_file in results {
@@ -171,7 +170,7 @@ async fn main() -> WebDriverResult<()> {
     let matches = App::new("APK Downloader")
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
-        .usage("apk-downloader <-a app_name | -l list_source> [--download-source download_source] [--processes processes] OUTPUT ")
+        .usage("apk-downloader <-a app_name | -l list_source> [--download-source download_source] [--parallel parallel] OUTPUT ")
         .arg(
             Arg::with_name("list_source")
                 .help("Source of the apps list")
@@ -211,10 +210,10 @@ async fn main() -> WebDriverResult<()> {
                 .takes_value(true)
                 .required_if("download_source", "GooglePlay"))
         .arg(
-            Arg::with_name("processes")
+            Arg::with_name("parallel")
                 .help("The number of parallel APK fetches to run at a time")
                 .short("r")
-                .long("processes")
+                .long("parallel")
                 .takes_value(true)
                 .default_value("4")
                 .required(false))
@@ -225,7 +224,7 @@ async fn main() -> WebDriverResult<()> {
         .get_matches();
 
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
-    let processes = value_t!(matches, "processes", usize).unwrap();
+    let parallel = value_t!(matches, "parallel", usize).unwrap();
     let outpath = matches.value_of("OUTPUT").unwrap();
     let list = match matches.value_of("app_name") {
         Some(app_name) => vec![app_name.to_string()],
@@ -237,12 +236,12 @@ async fn main() -> WebDriverResult<()> {
 
     match download_source {
         DownloadSource::APKPure => {
-            download_apps_from_apkpure(list, processes, outpath).await.unwrap();
+            download_apps_from_apkpure(list, parallel, outpath).await.unwrap();
         },
         DownloadSource::GooglePlay => {
             let username = matches.value_of("google_username").unwrap();
             let password = matches.value_of("google_password").unwrap();
-            download_apps_from_google_play(list, processes, username, password, outpath).await;
+            download_apps_from_google_play(list, parallel, username, password, outpath).await;
         },
     }
     Ok(())
