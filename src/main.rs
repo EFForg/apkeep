@@ -70,8 +70,12 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, u
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
                     Ok(_) => Ok(()),
                     Err(err) if matches!(err.kind(), ErrorKind::FileExists) => {
-                        println!("File alredy exists for {}.  Aborting.", app_id);
+                        println!("File already exists for {}.  Aborting.", app_id);
                         Ok(())
+                    }
+                    Err(err) if matches!(err.kind(), ErrorKind::InvalidApp) => {
+                        println!("Invalid app response for {}.  Aborting.", app_id);
+                        Err(err)
                     }
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
