@@ -194,7 +194,7 @@ async fn main() -> WebDriverResult<()> {
     let matches = App::new("APK Downloader")
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
-        .usage("apk-downloader <-a app_name | -l list_source> [--download-source download_source] [--parallel parallel] OUTPUT ")
+        .usage("apk-downloader <-a app_name | -l list_source> [-d download_source] [-p parallel] OUTPUT ")
         .arg(
             Arg::with_name("list_source")
                 .help("Source of the apps list")
