@@ -7,7 +7,9 @@
 //! # List Sources
 //!
 //! A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on
-//! the Google Play Store.
+//! the Google Play Store.  You can also specify a CSV file which lists the apps to download.  If
+//! you have a simple file with one app ID per line, you can just treat it as a CSV with a single
+//! field.
 //!
 //! # Download Sources
 //!
@@ -38,7 +40,7 @@ arg_enum! {
     #[derive(Debug)]
     pub enum ListSource {
         AndroidRank,
-        ISDi,
+        CSV,
     }
 }
 arg_enum! {
@@ -48,33 +50,31 @@ arg_enum! {
     }
 }
 
-async fn fetch_list(source: &ListSource) -> Result<Vec<String>, Box<dyn Error>> {
-    let resp = match source {
-        &ListSource::AndroidRank => reqwest::get("https://www.androidrank.org/applist.csv"),
-        &ListSource::ISDi => reqwest::get("https://raw.githubusercontent.com/stopipv/isdi/master/static_data/app-flags.csv"),
-    }.await?
-     .error_for_status()?
-     .text()
-     .await?;
+async fn fetch_android_rank_list() -> Result<Vec<String>, Box<dyn Error>> {
+    let resp = reqwest::get("https://www.androidrank.org/applist.csv")
+        .await?
+        .error_for_status()?
+        .text()
+        .await?;
 
-    Ok(resp.split("\n").filter_map(|l| {
+    Ok(parse_csv_text(resp, 1))
+}
+
+fn fetch_csv_list(csv: &str, field: usize) -> Result<Vec<String>, Box<dyn Error>> {
+    Ok(parse_csv_text(fs::read_to_string(csv)?, field))
+}
+
+fn parse_csv_text(text: String, field: usize) -> Vec<String> {
+    let field = field - 1;
+    text.split("\n").filter_map(|l| {
         let entry = l.trim();
         let mut entry_vec = entry.split(",").collect::<Vec<&str>>();
-        if entry_vec.len() > 2 {
-            match source {
-                &ListSource::AndroidRank => Some(String::from(entry_vec.remove(0))),
-                &ListSource::ISDi => {
-                    let app_id = entry_vec.remove(0);
-                    match entry_vec.remove(0) {
-                        "playstore" => Some(String::from(app_id)),
-                        _ => None,
-                    }
-                },
-            }
+        if entry_vec.len() > field && !(entry_vec.len() == 1 && entry_vec[0].len() == 0) {
+            Some(String::from(entry_vec.remove(field)))
         } else {
             None
         }
-    }).collect())
+    }).collect()
 }
 
 async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, username: &str, password: &str, outpath: &str) {
@@ -203,6 +203,21 @@ async fn main() -> WebDriverResult<()> {
                 .takes_value(true)
                 .possible_values(&ListSource::variants()))
         .arg(
+            Arg::with_name("csv")
+                .help("CSV file to use (required if list source is CSV)")
+                .short("c")
+                .long("csv")
+                .takes_value(true)
+                .required_if("list_source", "CSV"))
+        .arg(
+            Arg::with_name("field")
+                .help("CSV field containing app IDs (used only if list source is CSV)")
+                .short("f")
+                .long("field")
+                .takes_value(true)
+                .default_value("1")
+                .required_if("list_source", "CSV"))
+        .arg(
             Arg::with_name("app_name")
                 .help("Provide the name of an app directly")
                 .short("a")
@@ -258,7 +273,24 @@ async fn main() -> WebDriverResult<()> {
         Some(app_name) => vec![app_name.to_string()],
         None => {
             let list_source = value_t!(matches.value_of("list_source"), ListSource).unwrap();
-            fetch_list(&list_source).await.unwrap()
+            match list_source {
+                ListSource::AndroidRank => fetch_android_rank_list().await.unwrap(),
+                ListSource::CSV => {
+                    let csv = matches.value_of("csv").unwrap();
+                    let field = value_t!(matches, "field", usize).unwrap();
+                    if field < 1 {
+                        println!("{}\n\nField must be 1 or greater", matches.usage());
+                        std::process::exit(1);
+                    }
+                    match fetch_csv_list(csv, field) {
+                        Ok(csv_list) => csv_list,
+                        Err(err) => {
+                            println!("{}\n\n{:?}", matches.usage(), err);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
         }
     };
 

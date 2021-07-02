@@ -14,7 +14,9 @@ apk-downloader -h
 ## List Sources
 
 A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on
-the Google Play Store.
+the Google Play Store.  You can also specify a CSV file which lists the apps to download.  If
+you have a simple file with one app ID per line, you can just treat it as a CSV with a single
+field.
 
 ## Download Sources
 
