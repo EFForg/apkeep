@@ -230,6 +230,10 @@ async fn main() -> WebDriverResult<()> {
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
     let parallel = value_t!(matches, "parallel", usize).unwrap();
     let outpath = matches.value_of("OUTPUT").unwrap();
+    if !Path::new(&outpath).is_dir() {
+        println!("{}\n\nOUTPUT is not a valid directory", matches.usage());
+        std::process::exit(1);
+    };
     let list = match matches.value_of("app_name") {
         Some(app_name) => vec![app_name.to_string()],
         None => {
