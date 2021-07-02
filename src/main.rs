@@ -35,6 +35,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 use thirtyfour::prelude::*;
+use tokio::time::{sleep, Duration as TokioDuration};
 
 arg_enum! {
     #[derive(Debug)]
@@ -77,7 +78,7 @@ fn parse_csv_text(text: String, field: usize) -> Vec<String> {
     }).collect()
 }
 
-async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, username: &str, password: &str, outpath: &str) {
+async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, delay: u64, username: &str, password: &str, outpath: &str) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
     gpa.login(username, password).await.expect("Could not log in to google play");
     let gpa = Rc::new(gpa);
@@ -87,6 +88,9 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, u
             let gpa = Rc::clone(&gpa);
             async move {
                 println!("Downloading {}...", app_id);
+                if delay > 0 {
+                    sleep(TokioDuration::from_millis(delay)).await;
+                }
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
                     Ok(_) => Ok(()),
                     Err(err) if matches!(err.kind(), ErrorKind::FileExists) => {
@@ -119,19 +123,19 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, u
     ).buffer_unordered(parallel).collect::<Vec<Result<(), GpapiError>>>().await;
 }
 
-async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, outpath: &str) -> WebDriverResult<()> {
+async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, delay: u64, outpath: &str) -> WebDriverResult<()> {
     let fetches = futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
             async move {
-                match download_single_app(&app_id, outpath).await {
+                match download_single_app(&app_id, delay, outpath).await {
                     Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
-                        match download_single_app(&app_id, outpath).await {
+                        match download_single_app(&app_id, delay, outpath).await {
                             Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
                             Err(_) => {
                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
-                                match download_single_app(&app_id, outpath).await {
+                                match download_single_app(&app_id, delay, outpath).await {
                                     Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Aborting.", app_id);
@@ -164,8 +168,11 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, outpa
     Ok(())
 }
 
-async fn download_single_app(app_id: &str, outpath: &str) -> WebDriverResult<(String, String, String)> {
+async fn download_single_app(app_id: &str, delay: u64, outpath: &str) -> WebDriverResult<(String, String, String)> {
     println!("Downloading {}...", app_id);
+    if delay > 0 {
+        sleep(TokioDuration::from_millis(delay)).await;
+    }
     let app_url = format!("https://apkpure.com/a/{}/download?from=details", app_id);
     let mut caps = DesiredCapabilities::chrome();
     let filepath = format!("{}", Path::new(outpath).join(app_id.clone()).to_str().unwrap());
@@ -249,6 +256,13 @@ async fn main() -> WebDriverResult<()> {
                 .takes_value(true)
                 .required_if("download_source", "GooglePlay"))
         .arg(
+            Arg::with_name("delay")
+                .help("Delay (in ms) to introduce before download requests")
+                .short("d")
+                .long("delay")
+                .takes_value(true)
+                .default_value("0"))
+        .arg(
             Arg::with_name("parallel")
                 .help("The number of parallel APK fetches to run at a time")
                 .short("r")
@@ -264,6 +278,7 @@ async fn main() -> WebDriverResult<()> {
 
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
     let parallel = value_t!(matches, "parallel", usize).unwrap();
+    let delay = value_t!(matches, "delay", u64).unwrap();
     let outpath = matches.value_of("OUTPUT").unwrap();
     if !Path::new(&outpath).is_dir() {
         println!("{}\n\nOUTPUT is not a valid directory", matches.usage());
@@ -296,12 +311,12 @@ async fn main() -> WebDriverResult<()> {
 
     match download_source {
         DownloadSource::APKPure => {
-            download_apps_from_apkpure(list, parallel, outpath).await.unwrap();
+            download_apps_from_apkpure(list, parallel, delay, outpath).await.unwrap();
         },
         DownloadSource::GooglePlay => {
             let username = matches.value_of("google_username").unwrap();
             let password = matches.value_of("google_password").unwrap();
-            download_apps_from_google_play(list, parallel, username, password, outpath).await;
+            download_apps_from_google_play(list, parallel, delay, username, password, outpath).await;
         },
     }
     Ok(())
