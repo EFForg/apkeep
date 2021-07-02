@@ -3,8 +3,11 @@ name = "apk-downloader"
 version = "0.1.0"
 authors = ["William Budington <bill@eff.org>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+edition = "2018"
+description = "A command-line tool for downloading APK files from various sources"
+homepage = "https://github.com/Hainish/apk-downloader"
+repository = "https://github.com/Hainish/apk-downloader"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
