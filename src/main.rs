@@ -78,7 +78,7 @@ fn parse_csv_text(text: String, field: usize) -> Vec<String> {
     }).collect()
 }
 
-async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, delay: u64, username: &str, password: &str, outpath: &str) {
+async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, username: &str, password: &str, outpath: &str) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
     gpa.login(username, password).await.expect("Could not log in to google play");
     let gpa = Rc::new(gpa);
@@ -88,8 +88,8 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, d
             let gpa = Rc::clone(&gpa);
             async move {
                 println!("Downloading {}...", app_id);
-                if delay > 0 {
-                    sleep(TokioDuration::from_millis(delay)).await;
+                if sleep_duration > 0 {
+                    sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
                     Ok(_) => Ok(()),
@@ -123,19 +123,19 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, d
     ).buffer_unordered(parallel).collect::<Vec<Result<(), GpapiError>>>().await;
 }
 
-async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, delay: u64, outpath: &str) -> WebDriverResult<()> {
+async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, outpath: &str) -> WebDriverResult<()> {
     let fetches = futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
             async move {
-                match download_single_app(&app_id, delay, outpath).await {
+                match download_single_app(&app_id, sleep_duration, outpath).await {
                     Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
-                        match download_single_app(&app_id, delay, outpath).await {
+                        match download_single_app(&app_id, sleep_duration, outpath).await {
                             Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
                             Err(_) => {
                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
-                                match download_single_app(&app_id, delay, outpath).await {
+                                match download_single_app(&app_id, sleep_duration, outpath).await {
                                     Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Aborting.", app_id);
@@ -168,10 +168,10 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, delay
     Ok(())
 }
 
-async fn download_single_app(app_id: &str, delay: u64, outpath: &str) -> WebDriverResult<(String, String, String)> {
+async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &str) -> WebDriverResult<(String, String, String)> {
     println!("Downloading {}...", app_id);
-    if delay > 0 {
-        sleep(TokioDuration::from_millis(delay)).await;
+    if sleep_duration > 0 {
+        sleep(TokioDuration::from_millis(sleep_duration)).await;
     }
     let app_url = format!("https://apkpure.com/a/{}/download?from=details", app_id);
     let mut caps = DesiredCapabilities::chrome();
@@ -185,8 +185,8 @@ async fn download_single_app(app_id: &str, delay: u64, outpath: &str) -> WebDriv
         Ok(driver) => driver,
         Err(_) => panic!("chromedriver must be running on port 4444")
     };
-    let delay = Duration::new(10, 0);
-    driver.set_implicit_wait_timeout(delay).await?;
+    let sleep_duration = Duration::new(10, 0);
+    driver.set_implicit_wait_timeout(sleep_duration).await?;
     driver.get(app_url).await?;
     let elem_result = driver.find_element(By::Css("span.file")).await?;
     let re = Regex::new(r" \([0-9.]+ MB\)$").unwrap();
@@ -256,10 +256,10 @@ async fn main() -> WebDriverResult<()> {
                 .takes_value(true)
                 .required_if("download_source", "GooglePlay"))
         .arg(
-            Arg::with_name("delay")
-                .help("Delay (in ms) to introduce before download requests")
-                .short("d")
-                .long("delay")
+            Arg::with_name("sleep_duration")
+                .help("Sleep duration (in ms) before download requests")
+                .short("s")
+                .long("sleep-duration")
                 .takes_value(true)
                 .default_value("0"))
         .arg(
@@ -278,7 +278,7 @@ async fn main() -> WebDriverResult<()> {
 
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
     let parallel = value_t!(matches, "parallel", usize).unwrap();
-    let delay = value_t!(matches, "delay", u64).unwrap();
+    let sleep_duration = value_t!(matches, "sleep_duration", u64).unwrap();
     let outpath = matches.value_of("OUTPUT").unwrap();
     if !Path::new(&outpath).is_dir() {
         println!("{}\n\nOUTPUT is not a valid directory", matches.usage());
@@ -311,12 +311,12 @@ async fn main() -> WebDriverResult<()> {
 
     match download_source {
         DownloadSource::APKPure => {
-            download_apps_from_apkpure(list, parallel, delay, outpath).await.unwrap();
+            download_apps_from_apkpure(list, parallel, sleep_duration, outpath).await.unwrap();
         },
         DownloadSource::GooglePlay => {
             let username = matches.value_of("google_username").unwrap();
             let password = matches.value_of("google_password").unwrap();
-            download_apps_from_google_play(list, parallel, delay, username, password, outpath).await;
+            download_apps_from_google_play(list, parallel, sleep_duration, username, password, outpath).await;
         },
     }
     Ok(())
