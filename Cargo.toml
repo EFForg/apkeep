@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["William Budington <bill@eff.org>"]
 edition = "2018"
 license = "MIT"
-edition = "2018"
 description = "A command-line tool for downloading APK files from various sources"
 homepage = "https://github.com/Hainish/apk-downloader"
 repository = "https://github.com/Hainish/apk-downloader"
