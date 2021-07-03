@@ -7,7 +7,7 @@
 
 ## Usage
 
-See [`USAGE`](USAGE).
+See [`USAGE`](https://github.com/Hainish/apk-downloader/blob/master/USAGE).
 
 ## List Sources
 

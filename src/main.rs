@@ -1,3 +1,7 @@
+//! # Usage
+//!
+//! See [`USAGE`](https://github.com/Hainish/apk-downloader/blob/master/USAGE).
+//!
 //! # List Sources
 //!
 //! A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on

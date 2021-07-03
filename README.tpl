@@ -5,10 +5,6 @@
 [![Documentation](https://docs.rs/apk-downloader/badge.svg)](https://docs.rs/apk-downloader)
 [![MIT licensed](https://img.shields.io/crates/l/apk-downloader.svg)](./LICENSE)
 
-## Usage
-
-See [`USAGE`](USAGE).
-
 {{readme}}
 
 License: {{license}}
