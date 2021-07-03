@@ -1,9 +1,3 @@
-//! # Usage
-//!
-//! ```shell
-//! apk-downloader -h
-//! ```
-//!
 //! # List Sources
 //!
 //! A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on
@@ -23,7 +17,6 @@
 #[macro_use]
 extern crate clap;
 
-use clap::{App, Arg};
 use futures_util::StreamExt;
 use gpapi::error::{Error as GpapiError, ErrorKind};
 use gpapi::Gpapi;
@@ -37,19 +30,8 @@ use std::time::Duration;
 use thirtyfour::prelude::*;
 use tokio::time::{sleep, Duration as TokioDuration};
 
-arg_enum! {
-    #[derive(Debug)]
-    pub enum ListSource {
-        AndroidRank,
-        CSV,
-    }
-}
-arg_enum! {
-    pub enum DownloadSource {
-        APKPure,
-        GooglePlay,
-    }
-}
+mod cli;
+use cli::{ListSource, DownloadSource};
 
 async fn fetch_android_rank_list() -> Result<Vec<String>, Box<dyn Error>> {
     let resp = reqwest::get("https://www.androidrank.org/applist.csv")
@@ -80,7 +62,10 @@ fn parse_csv_text(text: String, field: usize) -> Vec<String> {
 
 async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, username: &str, password: &str, outpath: &str) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
-    gpa.login(username, password).await.expect("Could not log in to google play");
+    if let Err(_) = gpa.login(username, password).await {
+        println!("Could not log in to Google Play.  Please check your credentials and try again later.");
+        std::process::exit(1);
+    }
     let gpa = Rc::new(gpa);
 
     futures_util::stream::iter(
@@ -198,90 +183,14 @@ async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &str) -
 
 #[tokio::main]
 async fn main() -> WebDriverResult<()> {
-    let matches = App::new("APK Downloader")
-        .author("William Budington <bill@eff.org>")
-        .about("Downloads APKs from various sources")
-        .usage("apk-downloader <-a app_name | -l list_source> [-d download_source] [-p parallel] OUTPUT ")
-        .arg(
-            Arg::with_name("list_source")
-                .help("Source of the apps list")
-                .short("l")
-                .long("list-source")
-                .takes_value(true)
-                .possible_values(&ListSource::variants()))
-        .arg(
-            Arg::with_name("csv")
-                .help("CSV file to use (required if list source is CSV)")
-                .short("c")
-                .long("csv")
-                .takes_value(true)
-                .required_if("list_source", "CSV"))
-        .arg(
-            Arg::with_name("field")
-                .help("CSV field containing app IDs (used only if list source is CSV)")
-                .short("f")
-                .long("field")
-                .takes_value(true)
-                .default_value("1")
-                .required_if("list_source", "CSV"))
-        .arg(
-            Arg::with_name("app_name")
-                .help("Provide the name of an app directly")
-                .short("a")
-                .long("app-name")
-                .takes_value(true)
-                .conflicts_with("list_source")
-                .required_unless("list_source"))
-        .arg(
-            Arg::with_name("download_source")
-                .help("Where to download the APKs from")
-                .short("d")
-                .long("download-source")
-                .default_value("APKPure")
-                .takes_value(true)
-                .possible_values(&DownloadSource::variants())
-                .required(false))
-        .arg(
-            Arg::with_name("google_username")
-                .help("Google Username (required if download source is Google Play)")
-                .short("u")
-                .long("username")
-                .takes_value(true)
-                .required_if("download_source", "GooglePlay"))
-        .arg(
-            Arg::with_name("google_password")
-                .help("Google App Password (required if download source is Google Play)")
-                .short("p")
-                .long("password")
-                .takes_value(true)
-                .required_if("download_source", "GooglePlay"))
-        .arg(
-            Arg::with_name("sleep_duration")
-                .help("Sleep duration (in ms) before download requests")
-                .short("s")
-                .long("sleep-duration")
-                .takes_value(true)
-                .default_value("0"))
-        .arg(
-            Arg::with_name("parallel")
-                .help("The number of parallel APK fetches to run at a time")
-                .short("r")
-                .long("parallel")
-                .takes_value(true)
-                .default_value("4")
-                .required(false))
-        .arg(Arg::with_name("OUTPUT")
-            .help("An absolute path to store output files")
-            .required(true)
-            .index(1))
-        .get_matches();
+    let matches = cli::app().get_matches();
 
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
     let parallel = value_t!(matches, "parallel", usize).unwrap();
     let sleep_duration = value_t!(matches, "sleep_duration", u64).unwrap();
-    let outpath = matches.value_of("OUTPUT").unwrap();
+    let outpath = matches.value_of("OUTPATH").unwrap();
     if !Path::new(&outpath).is_dir() {
-        println!("{}\n\nOUTPUT is not a valid directory", matches.usage());
+        println!("{}\n\nOUTPATH is not a valid directory", matches.usage());
         std::process::exit(1);
     };
     let list = match matches.value_of("app_name") {

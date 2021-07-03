@@ -7,9 +7,7 @@
 
 ## Usage
 
-```shell
-apk-downloader -h
-```
+See [`USAGE`](USAGE).
 
 ## List Sources
 

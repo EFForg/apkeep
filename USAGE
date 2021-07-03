@@ -1,0 +1,22 @@
+APK Downloader 
+William Budington <bill@eff.org>
+Downloads APKs from various sources
+
+USAGE:
+    apk-downloader <-a app_name | -l list_source> [-d download_source] [-p parallel] OUTPATH 
+
+OPTIONS:
+    -a, --app-name <app_name>                  Provide the name of an app directly
+    -c, --csv <csv>                            CSV file to use (required if list source is CSV)
+    -d, --download-source <download_source>    Where to download the APKs from [default: APKPure]  [possible values:
+                                               APKPure, GooglePlay]
+    -f, --field <field>                        CSV field containing app IDs (used only if list source is CSV) [default:
+                                               1]
+    -p, --password <google_password>           Google App Password (required if download source is Google Play)
+    -u, --username <google_username>           Google Username (required if download source is Google Play)
+    -l, --list-source <list_source>            Source of the apps list [possible values: AndroidRank, CSV]
+    -r, --parallel <parallel>                  The number of parallel APK fetches to run at a time [default: 4]
+    -s, --sleep-duration <sleep_duration>      Sleep duration (in ms) before download requests [default: 0]
+
+ARGS:
+    <OUTPATH>    An absolute path to store output files
