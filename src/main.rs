@@ -170,9 +170,9 @@ async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &str) -
     });
     caps.add_chrome_option("prefs", prefs).unwrap();
 
-    let driver = match WebDriver::new("http://localhost:4444", &caps).await {
+    let driver = match WebDriver::new("http://localhost:9515", &caps).await {
         Ok(driver) => driver,
-        Err(_) => panic!("chromedriver must be running on port 4444")
+        Err(_) => panic!("chromedriver must be running on port 9515")
     };
     let sleep_duration = Duration::new(10, 0);
     driver.set_implicit_wait_timeout(sleep_duration).await?;
