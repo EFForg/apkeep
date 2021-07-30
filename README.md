@@ -7,7 +7,7 @@
 
 ## Usage
 
-See [`USAGE`](https://github.com/Hainish/apk-downloader/blob/master/USAGE).
+See [`USAGE`](https://github.com/EFForg/apk-downloader/blob/master/USAGE).
 
 ## Usage Note
 

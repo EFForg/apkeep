@@ -5,8 +5,8 @@ authors = ["William Budington <bill@eff.org>"]
 edition = "2018"
 license = "MIT"
 description = "A command-line tool for downloading APK files from various sources"
-homepage = "https://github.com/Hainish/apk-downloader"
-repository = "https://github.com/Hainish/apk-downloader"
+homepage = "https://github.com/EFForg/apk-downloader"
+repository = "https://github.com/EFForg/apk-downloader"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
