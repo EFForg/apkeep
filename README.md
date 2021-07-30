@@ -9,6 +9,11 @@
 
 See [`USAGE`](https://github.com/Hainish/apk-downloader/blob/master/USAGE).
 
+## Usage Note
+
+Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
+or disproportionately large load on the infrastructure of the app distributor.
+
 ## List Sources
 
 A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on

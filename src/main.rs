@@ -2,6 +2,11 @@
 //!
 //! See [`USAGE`](https://github.com/Hainish/apk-downloader/blob/master/USAGE).
 //!
+//! # Usage Note
+//!
+//! Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
+//! or disproportionately large load on the infrastructure of the app distributor.
+//!
 //! # List Sources
 //!
 //! A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on
@@ -16,7 +21,6 @@
 //! * The Google Play Store, given a username and password.
 //! * APKPure, a third-party site hosting APKs available on the Play Store.  You must be running
 //! an instance of the ChromeDriver for this to work, since a headless browser is used.
-//! either from the Google Play Store directly, given a username
 
 #[macro_use]
 extern crate clap;
