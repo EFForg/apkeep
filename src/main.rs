@@ -34,6 +34,7 @@ use std::time::Duration;
 use futures_util::StreamExt;
 use gpapi::error::{Error as GpapiError, ErrorKind};
 use gpapi::Gpapi;
+use ofiles::opath;
 use regex::Regex;
 use serde_json::json;
 use thirtyfour::prelude::*;
@@ -174,6 +175,24 @@ async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &str) -
     driver.get(app_url).await?;
     let elem_result = driver.find_element(By::Css("span.file")).await?;
     let re = Regex::new(r" \([0-9.]+ MB\)$").unwrap();
+
+    if let Ok(paths) = fs::read_dir(&filepath) {
+        let dir_list = paths.filter_map(|path| path.ok()).collect::<Vec<fs::DirEntry>>();
+        if dir_list.len() > 0 {
+            let filename = dir_list[0].file_name();
+            loop {
+                if let Ok(opids) = opath(Path::new(&filepath).join(filename.clone())) {
+                    if opids.is_empty() {
+                        break;
+                    } else {
+                        sleep(TokioDuration::from_millis(100)).await;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
 
     let new_filename = elem_result.text().await?;
     let new_filename = re.replace(&new_filename, "").into_owned();
