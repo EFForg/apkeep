@@ -1,13 +1,6 @@
 use clap::{App, Arg};
 
 arg_enum! {
-    #[derive(Debug)]
-    pub enum ListSource {
-        AndroidRank,
-        CSV,
-    }
-}
-arg_enum! {
     pub enum DownloadSource {
         APKPure,
         GooglePlay,
@@ -18,37 +11,28 @@ pub fn app() -> App<'static, 'static> {
     App::new("APK Downloader")
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
-        .usage("apk-downloader <-a app_name | -l list_source> [-d download_source] [-p parallel] OUTPATH ")
-        .arg(
-            Arg::with_name("list_source")
-                .help("Source of the apps list")
-                .short("l")
-                .long("list-source")
-                .takes_value(true)
-                .possible_values(&ListSource::variants()))
-        .arg(
-            Arg::with_name("csv")
-                .help("CSV file to use (required if list source is CSV)")
-                .short("c")
-                .long("csv")
-                .takes_value(true)
-                .required_if("list_source", "CSV"))
-        .arg(
-            Arg::with_name("field")
-                .help("CSV field containing app IDs (used only if list source is CSV)")
-                .short("f")
-                .long("field")
-                .takes_value(true)
-                .default_value("1")
-                .required_if("list_source", "CSV"))
+        .usage("apk-downloader <-a app_name | -c csv -f field> [-d download_source] [-p parallel] OUTPATH")
         .arg(
             Arg::with_name("app_name")
                 .help("Provide the name of an app directly")
                 .short("a")
                 .long("app-name")
+                .takes_value(true))
+        .arg(
+            Arg::with_name("csv")
+                .help("CSV file to use")
+                .short("c")
+                .long("csv")
                 .takes_value(true)
-                .conflicts_with("list_source")
-                .required_unless("list_source"))
+                .conflicts_with("app_name")
+                .required_unless("app_name"))
+        .arg(
+            Arg::with_name("field")
+                .help("CSV field containing app IDs (used only if CSV is specified)")
+                .short("f")
+                .long("field")
+                .takes_value(true)
+                .default_value("1"))
         .arg(
             Arg::with_name("download_source")
                 .help("Where to download the APKs from")

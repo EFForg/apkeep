@@ -7,12 +7,12 @@
 //! Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
 //! or disproportionately large load on the infrastructure of the app distributor.
 //!
-//! # List Sources
+//! # Specify a CSV file or individual app ID
 //!
-//! A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on
-//! the Google Play Store.  You can also specify a CSV file which lists the apps to download.  If
-//! you have a simple file with one app ID per line, you can just treat it as a CSV with a single
-//! field.
+//! You can either specify a CSV file which lists the apps to download, or an individual app ID.
+//! If you specify a CSV file and the app ID is not specified by the first column, you'll have to
+//! use the --field option as well.  If you have a simple file with one app ID per line, you can
+//! just treat it as a CSV with a single field.
 //!
 //! # Download Sources
 //!
@@ -39,17 +39,7 @@ use thirtyfour::prelude::*;
 use tokio::time::{sleep, Duration as TokioDuration};
 
 mod cli;
-use cli::{ListSource, DownloadSource};
-
-async fn fetch_android_rank_list() -> Result<Vec<String>, Box<dyn Error>> {
-    let resp = reqwest::get("https://www.androidrank.org/applist.csv")
-        .await?
-        .error_for_status()?
-        .text()
-        .await?;
-
-    Ok(parse_csv_text(resp, 1))
-}
+use cli::DownloadSource;
 
 fn fetch_csv_list(csv: &str, field: usize) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(parse_csv_text(fs::read_to_string(csv)?, field))
@@ -204,23 +194,17 @@ async fn main() -> WebDriverResult<()> {
     let list = match matches.value_of("app_name") {
         Some(app_name) => vec![app_name.to_string()],
         None => {
-            let list_source = value_t!(matches.value_of("list_source"), ListSource).unwrap();
-            match list_source {
-                ListSource::AndroidRank => fetch_android_rank_list().await.unwrap(),
-                ListSource::CSV => {
-                    let csv = matches.value_of("csv").unwrap();
-                    let field = value_t!(matches, "field", usize).unwrap();
-                    if field < 1 {
-                        println!("{}\n\nField must be 1 or greater", matches.usage());
-                        std::process::exit(1);
-                    }
-                    match fetch_csv_list(csv, field) {
-                        Ok(csv_list) => csv_list,
-                        Err(err) => {
-                            println!("{}\n\n{:?}", matches.usage(), err);
-                            std::process::exit(1);
-                        }
-                    }
+            let csv = matches.value_of("csv").unwrap();
+            let field = value_t!(matches, "field", usize).unwrap();
+            if field < 1 {
+                println!("{}\n\nField must be 1 or greater", matches.usage());
+                std::process::exit(1);
+            }
+            match fetch_csv_list(csv, field) {
+                Ok(csv_list) => csv_list,
+                Err(err) => {
+                    println!("{}\n\n{:?}", matches.usage(), err);
+                    std::process::exit(1);
                 }
             }
         }

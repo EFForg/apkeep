@@ -14,12 +14,12 @@ See [`USAGE`](https://github.com/EFForg/apk-downloader/blob/master/USAGE).
 Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
 or disproportionately large load on the infrastructure of the app distributor.
 
-## List Sources
+## Specify a CSV file or individual app ID
 
-A few distinct lists of APKs are used.  AndroidRank compiles the most popular apps available on
-the Google Play Store.  You can also specify a CSV file which lists the apps to download.  If
-you have a simple file with one app ID per line, you can just treat it as a CSV with a single
-field.
+You can either specify a CSV file which lists the apps to download, or an individual app ID.
+If you specify a CSV file and the app ID is not specified by the first column, you'll have to
+use the --field option as well.  If you have a simple file with one app ID per line, you can
+just treat it as a CSV with a single field.
 
 ## Download Sources
 
