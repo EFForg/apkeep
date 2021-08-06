@@ -20,7 +20,7 @@ dependencies = [
 
 [[package]]
 name = "apk-downloader"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "clap",
  "futures-util",

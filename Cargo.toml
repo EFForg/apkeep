@@ -1,6 +1,6 @@
 [package]
 name = "apk-downloader"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["William Budington <bill@eff.org>"]
 edition = "2018"
 license = "MIT"
