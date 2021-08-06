@@ -178,6 +178,8 @@ async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &PathBu
     driver.get(app_url).await?;
     let elem_result = driver.find_element(By::Css("span.file")).await?;
     let re = Regex::new(r" \([0-9.]+ MB\)$").unwrap();
+    let new_filename = elem_result.text().await?;
+    let new_filename = re.replace(&new_filename, "").into_owned();
 
     if let Ok(paths) = fs::read_dir(&filepath) {
         let dir_list = paths.filter_map(|path| path.ok()).collect::<Vec<fs::DirEntry>>();
@@ -197,8 +199,6 @@ async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &PathBu
         }
     }
 
-    let new_filename = elem_result.text().await?;
-    let new_filename = re.replace(&new_filename, "").into_owned();
     Ok((filepath, new_filename, String::from(app_id)))
 }
 
@@ -214,8 +214,8 @@ async fn main() -> WebDriverResult<()> {
         println!("{}\n\nOUTPATH is not a valid directory", matches.usage());
         std::process::exit(1);
     };
-    let list = match matches.value_of("app_name") {
-        Some(app_name) => vec![app_name.to_string()],
+    let list = match matches.value_of("app_id") {
+        Some(app_id) => vec![app_id.to_string()],
         None => {
             let csv = matches.value_of("csv").unwrap();
             let field = value_t!(matches, "field", usize).unwrap();

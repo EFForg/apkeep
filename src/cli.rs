@@ -11,12 +11,12 @@ pub fn app() -> App<'static, 'static> {
     App::new("APK Downloader")
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
-        .usage("apk-downloader <-a app_name | -c csv -f field> [-d download_source] [-p parallel] OUTPATH")
+        .usage("apk-downloader <-a app_id | -c csv -f field> [-d download_source] [-p parallel] OUTPATH")
         .arg(
-            Arg::with_name("app_name")
-                .help("Provide the name of an app directly")
+            Arg::with_name("app_id")
+                .help("Provide the ID of an app directly (e.g. com.instagram.android)")
                 .short("a")
-                .long("app-name")
+                .long("app-id")
                 .takes_value(true))
         .arg(
             Arg::with_name("csv")
@@ -24,8 +24,8 @@ pub fn app() -> App<'static, 'static> {
                 .short("c")
                 .long("csv")
                 .takes_value(true)
-                .conflicts_with("app_name")
-                .required_unless("app_name"))
+                .conflicts_with("app_id")
+                .required_unless("app_id"))
         .arg(
             Arg::with_name("field")
                 .help("CSV field containing app IDs (used only if CSV is specified)")
