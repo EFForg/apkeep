@@ -27,7 +27,7 @@ extern crate clap;
 
 use std::error::Error;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -60,7 +60,7 @@ fn parse_csv_text(text: String, field: usize) -> Vec<String> {
     }).collect()
 }
 
-async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, username: &str, password: &str, outpath: &str) {
+async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, username: &str, password: &str, outpath: &PathBuf) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
     if let Err(_) = gpa.login(username, password).await {
         println!("Could not log in to Google Play.  Please check your credentials and try again later.");
@@ -108,7 +108,7 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, s
     ).buffer_unordered(parallel).collect::<Vec<Result<(), GpapiError>>>().await;
 }
 
-async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, outpath: &str) -> WebDriverResult<()> {
+async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, outpath: &PathBuf) -> WebDriverResult<()> {
     let fetches = futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
             async move {
@@ -153,7 +153,7 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep
     Ok(())
 }
 
-async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &str) -> WebDriverResult<(String, String, String)> {
+async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &PathBuf) -> WebDriverResult<(String, String, String)> {
     println!("Downloading {}...", app_id);
     if sleep_duration > 0 {
         sleep(TokioDuration::from_millis(sleep_duration)).await;
@@ -206,7 +206,7 @@ async fn main() -> WebDriverResult<()> {
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
     let parallel = value_t!(matches, "parallel", usize).unwrap();
     let sleep_duration = value_t!(matches, "sleep_duration", u64).unwrap();
-    let outpath = matches.value_of("OUTPATH").unwrap();
+    let outpath = fs::canonicalize(matches.value_of("OUTPATH").unwrap()).unwrap();
     if !Path::new(&outpath).is_dir() {
         println!("{}\n\nOUTPATH is not a valid directory", matches.usage());
         std::process::exit(1);
@@ -232,12 +232,12 @@ async fn main() -> WebDriverResult<()> {
 
     match download_source {
         DownloadSource::APKPure => {
-            download_apps_from_apkpure(list, parallel, sleep_duration, outpath).await.unwrap();
+            download_apps_from_apkpure(list, parallel, sleep_duration, &outpath).await.unwrap();
         },
         DownloadSource::GooglePlay => {
             let username = matches.value_of("google_username").unwrap();
             let password = matches.value_of("google_password").unwrap();
-            download_apps_from_google_play(list, parallel, sleep_duration, username, password, outpath).await;
+            download_apps_from_google_play(list, parallel, sleep_duration, username, password, &outpath).await;
         },
     }
     Ok(())

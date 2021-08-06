@@ -72,7 +72,7 @@ pub fn app() -> App<'static, 'static> {
                 .default_value("4")
                 .required(false))
         .arg(Arg::with_name("OUTPATH")
-            .help("An absolute path to store output files")
+            .help("Path to store output files")
             .required(true)
             .index(1))
 }

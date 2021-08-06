@@ -17,4 +17,4 @@ OPTIONS:
     -s, --sleep-duration <sleep_duration>      Sleep duration (in ms) before download requests [default: 0]
 
 ARGS:
-    <OUTPATH>    An absolute path to store output files
+    <OUTPATH>    Path to store output files
