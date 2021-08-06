@@ -168,7 +168,10 @@ async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &PathBu
 
     let driver = match WebDriver::new("http://localhost:9515", &caps).await {
         Ok(driver) => driver,
-        Err(_) => panic!("chromedriver must be running on port 9515")
+        Err(_) => {
+            println!("Error: chromedriver must be running on port 9515. Install and run `chromedriver`");
+            std::process::exit(1);
+        }
     };
     let sleep_duration = Duration::new(10, 0);
     driver.set_implicit_wait_timeout(sleep_duration).await?;
