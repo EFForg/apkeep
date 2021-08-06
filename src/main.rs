@@ -25,16 +25,17 @@
 #[macro_use]
 extern crate clap;
 
-use futures_util::StreamExt;
-use gpapi::error::{Error as GpapiError, ErrorKind};
-use gpapi::Gpapi;
-use regex::Regex;
-use serde_json::json;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
+
+use futures_util::StreamExt;
+use gpapi::error::{Error as GpapiError, ErrorKind};
+use gpapi::Gpapi;
+use regex::Regex;
+use serde_json::json;
 use thirtyfour::prelude::*;
 use tokio::time::{sleep, Duration as TokioDuration};
 
