@@ -20,7 +20,8 @@
 //!
 //! * The Google Play Store, given a username and password.
 //! * APKPure, a third-party site hosting APKs available on the Play Store.  You must be running
-//! an instance of the ChromeDriver for this to work, since a headless browser is used.
+//! an instance of the ChromeDriver for this to work.  For headless downloading, run with `xvfb-run
+//! chromedriver`.
 
 #[macro_use]
 extern crate clap;
