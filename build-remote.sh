@@ -34,6 +34,7 @@ cd openssl-1.1.1k
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
+cd ~
 wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
 # later versions are available, but have to use an earlier version for compatability with openssl-1.1.1k
 unzip android-ndk-r21e-linux-x86_64.zip
@@ -41,13 +42,13 @@ cd android-ndk-r21e
 export ANDROID_NDK_HOME="$PWD"
 export PATH="$PATH:$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
-cd ~/openssl-1.1.1k
+cd $OPENSSL_DIR
 ./Configure android-arm64 -D__ANDROID_API__=21
 make
 cd ../apk-downloader
 cargo build --release --target=aarch64-linux-android
 
-cd ~/openssl-1.1.1k
+cd $OPENSSL_DIR
 make clean
 ./Configure android-arm -D__ANDROID_API__=21
 make
