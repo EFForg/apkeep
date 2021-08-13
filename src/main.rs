@@ -35,6 +35,7 @@ use std::time::Duration;
 use futures_util::StreamExt;
 use gpapi::error::{Error as GpapiError, ErrorKind};
 use gpapi::Gpapi;
+#[cfg(not(target_arch = "arm"))]
 use ofiles::opath;
 use regex::Regex;
 use serde_json::json;
@@ -182,6 +183,7 @@ async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &PathBu
     let new_filename = elem_result.text().await?;
     let new_filename = re.replace(&new_filename, "").into_owned();
 
+    #[cfg(not(target_arch = "arm"))]
     if let Ok(paths) = fs::read_dir(&filepath) {
         let dir_list = paths.filter_map(|path| path.ok()).collect::<Vec<fs::DirEntry>>();
         if dir_list.len() > 0 {
