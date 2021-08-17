@@ -18,10 +18,8 @@
 //!
 //! You can use this tool to download from a few distinct sources.
 //!
-//! * The Google Play Store, given a username and password.
-//! * APKPure, a third-party site hosting APKs available on the Play Store.  You must be running
-//! an instance of the ChromeDriver for this to work.  For headless downloading, run with `xvfb-run
-//! chromedriver`.
+//! * The Google Play Store, given a username and password
+//! * APKPure, a third-party site hosting APKs available on the Play Store
 
 #[macro_use]
 extern crate clap;
@@ -30,17 +28,15 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::time::Duration;
 
 use futures_util::StreamExt;
-use gpapi::error::{Error as GpapiError, ErrorKind};
+use gpapi::error::ErrorKind as GpapiErrorKind;
 use gpapi::Gpapi;
-#[cfg(not(target_arch = "arm"))]
-use ofiles::opath;
 use regex::Regex;
-use serde_json::json;
-use thirtyfour::prelude::*;
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::Url;
 use tokio::time::{sleep, Duration as TokioDuration};
+use tokio_dl_stream_to_disk::error::ErrorKind as TDSTDErrorKind;
 
 mod cli;
 use cli::DownloadSource;
@@ -79,54 +75,23 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, s
                     sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                    Ok(_) => Ok(()),
-                    Err(err) if matches!(err.kind(), ErrorKind::FileExists) => {
+                    Ok(_) => (),
+                    Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
                         println!("File already exists for {}.  Aborting.", app_id);
-                        Ok(())
                     }
-                    Err(err) if matches!(err.kind(), ErrorKind::InvalidApp) => {
+                    Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
                         println!("Invalid app response for {}.  Aborting.", app_id);
-                        Err(err)
                     }
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                         match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                            Ok(_) => Ok(()),
+                            Ok(_) => (),
                             Err(_) => {
                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
                                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                                    Ok(_) => Ok(()),
-                                    Err(err) => {
-                                        println!("An error has occurred attempting to download {}.  Aborting.", app_id);
-                                        Err(err)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        })
-    ).buffer_unordered(parallel).collect::<Vec<Result<(), GpapiError>>>().await;
-}
-
-async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, outpath: &PathBuf) -> WebDriverResult<()> {
-    let fetches = futures_util::stream::iter(
-        app_ids.into_iter().map(|app_id| {
-            async move {
-                match download_single_app(&app_id, sleep_duration, outpath).await {
-                    Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
-                    Err(_) => {
-                        println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
-                        match download_single_app(&app_id, sleep_duration, outpath).await {
-                            Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
-                            Err(_) => {
-                                println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
-                                match download_single_app(&app_id, sleep_duration, outpath).await {
-                                    Ok(res_tuple) => futures_util::future::ready(Some(res_tuple)),
+                                    Ok(_) => (),
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Aborting.", app_id);
-                                        futures_util::future::ready(None)
                                     }
                                 }
                             }
@@ -135,78 +100,92 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep
                 }
             }
         })
-    ).buffer_unordered(parallel).filter_map(|i| i).collect::<Vec<(String, String, String)>>();
-    println!("Waiting...");
-    let results = fetches.await;
-    for move_file in results {
-        if let Ok(paths) = fs::read_dir(&move_file.0) {
-            let dir_list = paths.filter_map(|path| path.ok()).collect::<Vec<fs::DirEntry>>();
-            if dir_list.len() > 0 {
-                println!("Saving {}...", move_file.2);
-                let old_filename = dir_list[0].file_name();
-                fs::rename(Path::new(&move_file.0).join(old_filename), Path::new(&move_file.0).join(move_file.1)).unwrap();
-            } else {
-                println!("Could not save {}...", move_file.2);
-            }
-        } else {
-            println!("Could not save {}...", move_file.2);
-        }
-    }
-    Ok(())
+    ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-async fn download_single_app(app_id: &str, sleep_duration: u64, outpath: &PathBuf) -> WebDriverResult<(String, String, String)> {
-    println!("Downloading {}...", app_id);
-    if sleep_duration > 0 {
-        sleep(TokioDuration::from_millis(sleep_duration)).await;
-    }
-    let app_url = format!("https://apkpure.com/a/{}/download?from=details", app_id);
-    let mut caps = DesiredCapabilities::chrome();
-    let filepath = format!("{}", Path::new(outpath).join(app_id.clone()).to_str().unwrap());
-    let prefs = json!({
-        "download.default_directory": filepath
-    });
-    caps.add_chrome_option("prefs", prefs).unwrap();
+async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, outpath: &PathBuf) {
+    let http_client = Rc::new(reqwest::Client::new());
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-cv",
+        HeaderValue::from_static("3172501"));
+    headers.insert(
+        "x-sv",
+        HeaderValue::from_static("29"));
+    headers.insert(
+        "x-abis",
+        HeaderValue::from_static("arm64-v8a"));
+    headers.insert(
+        "x-abis",
+        HeaderValue::from_static("armeabi-v7a"));
+    headers.insert(
+        "x-abis",
+        HeaderValue::from_static("armeabi"));
+    headers.insert(
+        "x-gp",
+        HeaderValue::from_static("1"));
+    let re = Rc::new(Regex::new(r"B.APKJ..(https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))").unwrap());
 
-    let driver = match WebDriver::new("http://localhost:9515", &caps).await {
-        Ok(driver) => driver,
-        Err(_) => {
-            println!("Error: chromedriver must be running on port 9515. Install and run `chromedriver`");
-            std::process::exit(1);
-        }
-    };
-    let sleep_duration = Duration::new(10, 0);
-    driver.set_implicit_wait_timeout(sleep_duration).await?;
-    driver.get(app_url).await?;
-    let elem_result = driver.find_element(By::Css("span.file")).await?;
-    let re = Regex::new(r" \([0-9.]+ MB\)$").unwrap();
-    let new_filename = elem_result.text().await?;
-    let new_filename = re.replace(&new_filename, "").into_owned();
-
-    #[cfg(not(target_arch = "arm"))]
-    if let Ok(paths) = fs::read_dir(&filepath) {
-        let dir_list = paths.filter_map(|path| path.ok()).collect::<Vec<fs::DirEntry>>();
-        if dir_list.len() > 0 {
-            let filename = dir_list[0].file_name();
-            loop {
-                if let Ok(opids) = opath(Path::new(&filepath).join(filename.clone())) {
-                    if opids.is_empty() {
-                        break;
-                    } else {
-                        sleep(TokioDuration::from_millis(100)).await;
+    futures_util::stream::iter(
+        app_ids.into_iter().map(|app_id| {
+            let http_client = Rc::clone(&http_client);
+            let re = Rc::clone(&re);
+            let headers = headers.clone();
+            async move {
+                println!("Downloading {}...", app_id);
+                if sleep_duration > 0 {
+                    sleep(TokioDuration::from_millis(sleep_duration)).await;
+                }
+                let detail_url = Url::parse(&format!("https://api.pureapk.com/m/v3/app/detail?hl=en-US&package_name={}", app_id)).unwrap();
+                let detail_response = http_client
+                    .get(detail_url)
+                    .headers(headers)
+                    .send().await.unwrap();
+                match detail_response.status() {
+                    reqwest::StatusCode::OK => {
+                        let body = detail_response.text().await.unwrap();
+                        match re.captures(&body) {
+                            Some(caps) if caps.len() >= 2 => {
+                                let download_url = caps.get(1).unwrap().as_str();
+                                let fname = format!("{}.apk", app_id);
+                                match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                                    Ok(_) => (),
+                                    Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
+                                        println!("File already exists for {}.  Aborting.", app_id);
+                                    },
+                                    Err(_) => {
+                                        println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
+                                        match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                                            Ok(_) => (),
+                                            Err(_) => {
+                                                println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
+                                                match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                                                    Ok(_) => (),
+                                                    Err(_) => {
+                                                        println!("An error has occurred attempting to download {}.  Aborting.", app_id);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            _ => {
+                                println!("Could not get download URL for {}.  Aborting.", app_id);
+                            }
+                        }
+                    },
+                    _ => {
+                        println!("Invalid app response for {}.  Aborting.", app_id);
                     }
-                } else {
-                    break;
                 }
             }
-        }
-    }
-
-    Ok((filepath, new_filename, String::from(app_id)))
+        })
+    ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
 #[tokio::main]
-async fn main() -> WebDriverResult<()> {
+async fn main() {
     let matches = cli::app().get_matches();
 
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
@@ -238,7 +217,7 @@ async fn main() -> WebDriverResult<()> {
 
     match download_source {
         DownloadSource::APKPure => {
-            download_apps_from_apkpure(list, parallel, sleep_duration, &outpath).await.unwrap();
+            download_apps_from_apkpure(list, parallel, sleep_duration, &outpath).await;
         },
         DownloadSource::GooglePlay => {
             let username = matches.value_of("google_username").unwrap();
@@ -246,5 +225,4 @@ async fn main() -> WebDriverResult<()> {
             download_apps_from_google_play(list, parallel, sleep_duration, username, password, &outpath).await;
         },
     }
-    Ok(())
 }

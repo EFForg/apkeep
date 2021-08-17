@@ -25,9 +25,7 @@ just treat it as a CSV with a single field.
 
 You can use this tool to download from a few distinct sources.
 
-* The Google Play Store, given a username and password.
-* APKPure, a third-party site hosting APKs available on the Play Store.  You must be running
-an instance of the ChromeDriver for this to work.  For headless downloading, run with `xvfb-run
-chromedriver`.
+* The Google Play Store, given a username and password
+* APKPure, a third-party site hosting APKs available on the Play Store
 
 License: MIT
