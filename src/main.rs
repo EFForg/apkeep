@@ -114,17 +114,11 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep
         HeaderValue::from_static("29"));
     headers.insert(
         "x-abis",
-        HeaderValue::from_static("arm64-v8a"));
-    headers.insert(
-        "x-abis",
-        HeaderValue::from_static("armeabi-v7a"));
-    headers.insert(
-        "x-abis",
-        HeaderValue::from_static("armeabi"));
+        HeaderValue::from_static("arm64-v8a,armeabi-v7a,armeabi"));
     headers.insert(
         "x-gp",
         HeaderValue::from_static("1"));
-    let re = Rc::new(Regex::new(r"B.APKJ..(https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))").unwrap());
+    let re = Rc::new(Regex::new(r"APKJ..(https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))").unwrap());
 
     futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
