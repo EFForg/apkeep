@@ -1,6 +1,6 @@
 //! # Usage
 //!
-//! See [`USAGE`](https://github.com/EFForg/apk-downloader/blob/master/USAGE).
+//! See [`USAGE`](https://github.com/EFForg/apk-dl/blob/master/USAGE).
 //!
 //! # Usage Note
 //!

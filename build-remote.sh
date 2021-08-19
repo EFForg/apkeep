@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build the APK Downloader for release from a fresh Debian 10 x64 install
 
-ssh -o 'StrictHostKeyChecking no' apk-downloader-compiler << 'EOF'
+ssh -o 'StrictHostKeyChecking no' apk-dl-compiler << 'EOF'
 sudo dpkg --add-architecture armhf
 sudo dpkg --add-architecture i386
 sudo dpkg --add-architecture arm64
@@ -16,8 +16,8 @@ bash /tmp/get_rust.sh -y
 source ~/.cargo/env
 rustup target install armv7-unknown-linux-gnueabihf i686-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-linux-android armv7-linux-androideabi
 
-git clone https://www.github.com/EFForg/apk-downloader.git
-cd apk-downloader
+git clone https://www.github.com/EFForg/apk-dl.git
+cd apk-dl
 export PKG_CONFIG_ALLOW_CROSS="true"
 cargo build --release
 export PKG_CONFIG_PATH="/usr/lib/arm-linux-gnueabihf/pkgconfig"
@@ -45,20 +45,20 @@ export PATH="$PATH:$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin"
 cd $OPENSSL_DIR
 ./Configure android-arm64 -D__ANDROID_API__=21
 make
-cd ../apk-downloader
+cd ../apk-dl
 cargo build --release --target=aarch64-linux-android
 
 cd $OPENSSL_DIR
 make clean
 ./Configure android-arm -D__ANDROID_API__=21
 make
-cd ../apk-downloader
+cd ../apk-dl
 cargo build --release --target=armv7-linux-androideabi
 EOF
 
-scp apk-downloader-compiler:~/apk-downloader/target/release/apk-downloader ./apk-downloader-x86_64-unknown-linux-gnu
-scp apk-downloader-compiler:~/apk-downloader/target/armv7-unknown-linux-gnueabihf/release/apk-downloader ./apk-downloader-armv7-unknown-linux-gnueabihf
-scp apk-downloader-compiler:~/apk-downloader/target/i686-unknown-linux-gnu/release/apk-downloader ./apk-downloader-i686-unknown-linux-gnu
-scp apk-downloader-compiler:~/apk-downloader/target/aarch64-unknown-linux-gnu/release/apk-downloader ./apk-downloader-aarch64-unknown-linux-gnu
-scp apk-downloader-compiler:~/apk-downloader/target/aarch64-linux-android/release/apk-downloader ./apk-downloader-aarch64-linux-android
-scp apk-downloader-compiler:~/apk-downloader/target/armv7-linux-androideabi/release/apk-downloader ./apk-downloader-armv7-linux-androideabi
+scp apk-dl-compiler:~/apk-dl/target/release/apk-dl ./apk-dl-x86_64-unknown-linux-gnu
+scp apk-dl-compiler:~/apk-dl/target/armv7-unknown-linux-gnueabihf/release/apk-dl ./apk-dl-armv7-unknown-linux-gnueabihf
+scp apk-dl-compiler:~/apk-dl/target/i686-unknown-linux-gnu/release/apk-dl ./apk-dl-i686-unknown-linux-gnu
+scp apk-dl-compiler:~/apk-dl/target/aarch64-unknown-linux-gnu/release/apk-dl ./apk-dl-aarch64-unknown-linux-gnu
+scp apk-dl-compiler:~/apk-dl/target/aarch64-linux-android/release/apk-dl ./apk-dl-aarch64-linux-android
+scp apk-dl-compiler:~/apk-dl/target/armv7-linux-androideabi/release/apk-dl ./apk-dl-armv7-linux-androideabi

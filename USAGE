@@ -3,7 +3,7 @@ William Budington <bill@eff.org>
 Downloads APKs from various sources
 
 USAGE:
-    apk-downloader <-a app_id | -c csv [-f field]> [-d download_source] [-p parallel] OUTPATH
+    apk-dl <-a app_id | -c csv [-f field]> [-d download_source] [-p parallel] OUTPATH
 
 OPTIONS:
     -a, --app-id <app_id>                      Provide the ID of an app directly (e.g. com.instagram.android)
