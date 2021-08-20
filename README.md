@@ -9,10 +9,23 @@
 
 See [`USAGE`](https://github.com/EFForg/apk-dl/blob/master/USAGE).
 
-## Usage Note
+## Examples
 
-Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
-or disproportionately large load on the infrastructure of the app distributor.
+The simplest example is to download a single APK to the current directory:
+
+```shell
+apk-dl -a com.instagram.android .
+```
+
+This downloads from the default source, `APKPure`, which does not require credentials.  To
+download directly from the google play store:
+
+```shell
+apk-downloader -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
+```
+
+Refer to [`USAGE`](https://github.com/EFForg/apk-dl/blob/master/USAGE) to download multiple
+APKs in a single run.
 
 ## Specify a CSV file or individual app ID
 
@@ -27,5 +40,10 @@ You can use this tool to download from a few distinct sources.
 
 * The Google Play Store, given a username and password
 * APKPure, a third-party site hosting APKs available on the Play Store
+
+## Usage Note
+
+Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
+or disproportionately large load on the infrastructure of the app distributor.
 
 License: MIT
