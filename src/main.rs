@@ -1,13 +1,13 @@
 //! # Usage
 //!
-//! See [`USAGE`](https://github.com/EFForg/apk-dl/blob/master/USAGE).
+//! See [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE).
 //!
 //! # Examples
 //!
 //! The simplest example is to download a single APK to the current directory:
 //!
 //! ```shell
-//! apk-dl -a com.instagram.android .
+//! apkeep -a com.instagram.android .
 //! ```
 //!
 //! This downloads from the default source, `APKPure`, which does not require credentials.  To
@@ -17,7 +17,7 @@
 //! apk-downloader -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
 //! ```
 //!
-//! Refer to [`USAGE`](https://github.com/EFForg/apk-dl/blob/master/USAGE) to download multiple
+//! Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
 //! APKs in a single run.
 //!
 //! # Specify a CSV file or individual app ID

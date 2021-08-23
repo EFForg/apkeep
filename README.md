@@ -1,20 +1,20 @@
 <!--- `README.md` is automatically generated from the rustdoc using [`cargo-readme`](https://crates.io/crates/cargo-readme). -->
-# `apk-dl` - A command-line tool for downloading APK files from various sources
+# `apkeep` - A command-line tool for downloading APK files from various sources
 
-[![crates.io](https://img.shields.io/crates/v/apk-dl.svg)](https://crates.io/crates/apk-dl)
-[![Documentation](https://docs.rs/apk-dl/badge.svg)](https://docs.rs/apk-dl)
-[![MIT licensed](https://img.shields.io/crates/l/apk-dl.svg)](./LICENSE)
+[![crates.io](https://img.shields.io/crates/v/apkeep.svg)](https://crates.io/crates/apkeep)
+[![Documentation](https://docs.rs/apkeep/badge.svg)](https://docs.rs/apkeep)
+[![MIT licensed](https://img.shields.io/crates/l/apkeep.svg)](./LICENSE)
 
 ## Usage
 
-See [`USAGE`](https://github.com/EFForg/apk-dl/blob/master/USAGE).
+See [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE).
 
 ## Examples
 
 The simplest example is to download a single APK to the current directory:
 
 ```shell
-apk-dl -a com.instagram.android .
+apkeep -a com.instagram.android .
 ```
 
 This downloads from the default source, `APKPure`, which does not require credentials.  To
@@ -24,7 +24,7 @@ download directly from the google play store:
 apk-downloader -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
 ```
 
-Refer to [`USAGE`](https://github.com/EFForg/apk-dl/blob/master/USAGE) to download multiple
+Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
 APKs in a single run.
 
 ## Specify a CSV file or individual app ID

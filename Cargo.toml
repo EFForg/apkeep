@@ -1,12 +1,12 @@
 [package]
-name = "apk-dl"
+name = "apkeep"
 version = "0.4.3"
 authors = ["William Budington <bill@eff.org>"]
 edition = "2018"
 license = "MIT"
 description = "A command-line tool for downloading APK files from various sources"
-homepage = "https://github.com/EFForg/apk-dl"
-repository = "https://github.com/EFForg/apk-dl"
+homepage = "https://github.com/EFForg/apkeep"
+repository = "https://github.com/EFForg/apkeep"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
