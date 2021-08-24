@@ -21,7 +21,7 @@ This downloads from the default source, `APKPure`, which does not require creden
 download directly from the google play store:
 
 ```shell
-apk-downloader -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
+apkeep -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
 ```
 
 Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
