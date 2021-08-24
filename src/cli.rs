@@ -1,5 +1,7 @@
 use clap::{App, Arg};
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 arg_enum! {
     pub enum DownloadSource {
         APKPure,
@@ -8,7 +10,7 @@ arg_enum! {
 }
 
 pub fn app() -> App<'static, 'static> {
-    App::new("APK Downloader")
+    App::new(format!("apkeep v{}", VERSION))
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
         .usage("apkeep <-a app_id | -c csv [-f field]> [-d download_source] [-p parallel] OUTPATH")

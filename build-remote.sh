@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the APK Downloader for release from a fresh Debian 10 x64 install
+# Build `apkeep` for release from a fresh Debian 10 x64 install
 
 ssh -o 'StrictHostKeyChecking no' apkeep-compiler << 'EOF'
 sudo dpkg --add-architecture armhf
