@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Maintain dependencies for cargo
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    assignees:
+      - "hainish"
+    commit-message:
+      prefix: "cargo-update"
+    labels:
+      - "dependencies"
+    pull-request-branch-name:
+      separator: "-"
+    reviewers:
+      - "hainish"
+    versioning-strategy: auto
