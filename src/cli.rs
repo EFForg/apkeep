@@ -13,7 +13,7 @@ pub fn app() -> App<'static, 'static> {
     App::new(format!("apkeep v{}", VERSION))
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
-        .usage("apkeep <-a app_id | -c csv [-f field]> [-d download_source] [-p parallel] OUTPATH")
+        .usage("apkeep <-a app_id | -c csv [-f field]> [-d download_source] [-r parallel] OUTPATH")
         .arg(
             Arg::with_name("app_id")
                 .help("Provide the ID of an app directly (e.g. com.instagram.android)")
