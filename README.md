@@ -5,6 +5,8 @@
 [![Documentation](https://docs.rs/apkeep/badge.svg)](https://docs.rs/apkeep)
 [![MIT licensed](https://img.shields.io/crates/l/apkeep.svg)](./LICENSE)
 
+![apkeep logo](logo.png)
+
 ## Usage
 
 See [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE).
