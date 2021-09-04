@@ -106,10 +106,10 @@ async fn download_apps_from_google_play(
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
                     Ok(_) => println!("{} downloaded successfully!", app_id),
                     Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
-                        println!("File already exists for {}.  Aborting.", app_id);
+                        println!("File already exists for {}. Skipping...", app_id);
                     }
                     Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
-                        println!("Invalid app response for {}.  Aborting.", app_id);
+                        println!("Invalid app response for {}. Skipping...", app_id);
                     }
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
@@ -120,7 +120,7 @@ async fn download_apps_from_google_play(
                                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
                                     Ok(_) => println!("{} downloaded successfully!", app_id),
                                     Err(_) => {
-                                        println!("An error has occurred attempting to download {}.  Aborting.", app_id);
+                                        println!("An error has occurred attempting to download {}. Skipping...", app_id);
                                     }
                                 }
                             }
@@ -174,7 +174,7 @@ async fn download_apps_from_apkpure(
                                 match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
                                     Ok(_) => println!("{} downloaded successfully!", app_id),
                                     Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
-                                        println!("File already exists for {}.  Aborting.", app_id);
+                                        println!("File already exists for {}. Skipping...", app_id);
                                     },
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
@@ -185,7 +185,7 @@ async fn download_apps_from_apkpure(
                                                 match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
                                                     Ok(_) => println!("{} downloaded successfully!", app_id),
                                                     Err(_) => {
-                                                        println!("An error has occurred attempting to download {}.  Aborting.", app_id);
+                                                        println!("An error has occurred attempting to download {}. Skipping...", app_id);
                                                     }
                                                 }
                                             }
@@ -194,12 +194,12 @@ async fn download_apps_from_apkpure(
                                 }
                             },
                             _ => {
-                                println!("Could not get download URL for {}.  Aborting.", app_id);
+                                println!("Could not get download URL for {}. Skipping...", app_id);
                             }
                         }
                     },
                     _ => {
-                        println!("Invalid app response for {}.  Aborting.", app_id);
+                        println!("Invalid app response for {}. Skipping...", app_id);
                     }
                 }
             }
