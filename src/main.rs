@@ -94,7 +94,7 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, s
                     sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                    Ok(_) => (),
+                    Ok(_) => println!("{} downloaded successfully!", app_id),
                     Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
                         println!("File already exists for {}.  Aborting.", app_id);
                     }
@@ -104,11 +104,11 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, s
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                         match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                            Ok(_) => (),
+                            Ok(_) => println!("{} downloaded successfully!", app_id),
                             Err(_) => {
                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
                                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                                    Ok(_) => (),
+                                    Ok(_) => println!("{} downloaded successfully!", app_id),
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Aborting.", app_id);
                                     }
@@ -162,18 +162,18 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep
                                 let download_url = caps.get(1).unwrap().as_str();
                                 let fname = format!("{}.apk", app_id);
                                 match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                    Ok(_) => (),
+                                    Ok(_) => println!("{} downloaded successfully!", app_id),
                                     Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
                                         println!("File already exists for {}.  Aborting.", app_id);
                                     },
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                                         match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                            Ok(_) => (),
+                                            Ok(_) => println!("{} downloaded successfully!", app_id),
                                             Err(_) => {
                                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
                                                 match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                                    Ok(_) => (),
+                                                    Ok(_) => println!("{} downloaded successfully!", app_id),
                                                     Err(_) => {
                                                         println!("An error has occurred attempting to download {}.  Aborting.", app_id);
                                                     }
