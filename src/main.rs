@@ -39,7 +39,6 @@
 //! Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
 //! or disproportionately large load on the infrastructure of the app distributor.
 
-
 #[macro_use]
 extern crate clap;
 
@@ -66,21 +65,32 @@ fn fetch_csv_list(csv: &str, field: usize) -> Result<Vec<String>, Box<dyn Error>
 
 fn parse_csv_text(text: String, field: usize) -> Vec<String> {
     let field = field - 1;
-    text.split("\n").filter_map(|l| {
-        let entry = l.trim();
-        let mut entry_vec = entry.split(",").collect::<Vec<&str>>();
-        if entry_vec.len() > field && !(entry_vec.len() == 1 && entry_vec[0].len() == 0) {
-            Some(String::from(entry_vec.remove(field)))
-        } else {
-            None
-        }
-    }).collect()
+    text.split("\n")
+        .filter_map(|l| {
+            let entry = l.trim();
+            let mut entry_vec = entry.split(",").collect::<Vec<&str>>();
+            if entry_vec.len() > field && !(entry_vec.len() == 1 && entry_vec[0].len() == 0) {
+                Some(String::from(entry_vec.remove(field)))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
-async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, username: &str, password: &str, outpath: &PathBuf) {
+async fn download_apps_from_google_play(
+    app_ids: Vec<String>,
+    parallel: usize,
+    sleep_duration: u64,
+    username: &str,
+    password: &str,
+    outpath: &PathBuf,
+) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
     if let Err(_) = gpa.login(username, password).await {
-        println!("Could not log in to Google Play.  Please check your credentials and try again later.");
+        println!(
+            "Could not log in to Google Play.  Please check your credentials and try again later."
+        );
         std::process::exit(1);
     }
     let gpa = Rc::new(gpa);
@@ -94,23 +104,23 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, s
                     sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                    Ok(_) => (),
+                    Ok(_) => println!("{} downloaded successfully!", app_id),
                     Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
-                        println!("File already exists for {}.  Aborting.", app_id);
+                        println!("File already exists for {}. Skipping...", app_id);
                     }
                     Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
-                        println!("Invalid app response for {}.  Aborting.", app_id);
+                        println!("Invalid app response for {}. Skipping...", app_id);
                     }
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                         match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                            Ok(_) => (),
+                            Ok(_) => println!("{} downloaded successfully!", app_id),
                             Err(_) => {
                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
                                 match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                                    Ok(_) => (),
+                                    Ok(_) => println!("{} downloaded successfully!", app_id),
                                     Err(_) => {
-                                        println!("An error has occurred attempting to download {}.  Aborting.", app_id);
+                                        println!("An error has occurred attempting to download {}. Skipping...", app_id);
                                     }
                                 }
                             }
@@ -122,21 +132,21 @@ async fn download_apps_from_google_play(app_ids: Vec<String>, parallel: usize, s
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep_duration: u64, outpath: &PathBuf) {
+async fn download_apps_from_apkpure(
+    app_ids: Vec<String>,
+    parallel: usize,
+    sleep_duration: u64,
+    outpath: &PathBuf,
+) {
     let http_client = Rc::new(reqwest::Client::new());
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "x-cv",
-        HeaderValue::from_static("3172501"));
-    headers.insert(
-        "x-sv",
-        HeaderValue::from_static("29"));
+    headers.insert("x-cv", HeaderValue::from_static("3172501"));
+    headers.insert("x-sv", HeaderValue::from_static("29"));
     headers.insert(
         "x-abis",
-        HeaderValue::from_static("arm64-v8a,armeabi-v7a,armeabi"));
-    headers.insert(
-        "x-gp",
-        HeaderValue::from_static("1"));
+        HeaderValue::from_static("arm64-v8a,armeabi-v7a,armeabi"),
+    );
+    headers.insert("x-gp", HeaderValue::from_static("1"));
     let re = Rc::new(Regex::new(r"APKJ..(https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))").unwrap());
 
     futures_util::stream::iter(
@@ -162,20 +172,20 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep
                                 let download_url = caps.get(1).unwrap().as_str();
                                 let fname = format!("{}.apk", app_id);
                                 match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                    Ok(_) => (),
+                                    Ok(_) => println!("{} downloaded successfully!", app_id),
                                     Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
-                                        println!("File already exists for {}.  Aborting.", app_id);
+                                        println!("File already exists for {}. Skipping...", app_id);
                                     },
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                                         match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                            Ok(_) => (),
+                                            Ok(_) => println!("{} downloaded successfully!", app_id),
                                             Err(_) => {
                                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
                                                 match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                                    Ok(_) => (),
+                                                    Ok(_) => println!("{} downloaded successfully!", app_id),
                                                     Err(_) => {
-                                                        println!("An error has occurred attempting to download {}.  Aborting.", app_id);
+                                                        println!("An error has occurred attempting to download {}. Skipping...", app_id);
                                                     }
                                                 }
                                             }
@@ -184,12 +194,12 @@ async fn download_apps_from_apkpure(app_ids: Vec<String>, parallel: usize, sleep
                                 }
                             },
                             _ => {
-                                println!("Could not get download URL for {}.  Aborting.", app_id);
+                                println!("Could not get download URL for {}. Skipping...", app_id);
                             }
                         }
                     },
                     _ => {
-                        println!("Invalid app response for {}.  Aborting.", app_id);
+                        println!("Invalid app response for {}. Skipping...", app_id);
                     }
                 }
             }
@@ -231,11 +241,19 @@ async fn main() {
     match download_source {
         DownloadSource::APKPure => {
             download_apps_from_apkpure(list, parallel, sleep_duration, &outpath).await;
-        },
+        }
         DownloadSource::GooglePlay => {
             let username = matches.value_of("google_username").unwrap();
             let password = matches.value_of("google_password").unwrap();
-            download_apps_from_google_play(list, parallel, sleep_duration, username, password, &outpath).await;
-        },
+            download_apps_from_google_play(
+                list,
+                parallel,
+                sleep_duration,
+                username,
+                password,
+                &outpath,
+            )
+            .await;
+        }
     }
 }
