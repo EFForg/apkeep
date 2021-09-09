@@ -38,6 +38,17 @@
 //!
 //! Users should not use app lists or choose so many parallel APK fetches as to place unreasonable
 //! or disproportionately large load on the infrastructure of the app distributor.
+//!
+//! When using with the Google Play Store as the download source, a few considerations should be
+//! made:
+//!
+//! * Google may terminate your Google account based on Terms of Service violations.  Read their
+//! [Terms of Service](https://play.google.com/about/play-terms/index.html), avoid violating it,
+//! and choose an account where this outcome is acceptable.
+//! * The session works with a specific "device profile," so only APKs available for that device,
+//! location, language, etc. will be available.  In time we hope to make this profile configurable.
+//! * Paid and DRM apps will not be available.
+//! * Using Tor will make it a lot more likely that the download will fail.
 
 #[macro_use]
 extern crate clap;
