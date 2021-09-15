@@ -6,6 +6,24 @@
 
 ![apkeep logo](logo.png)
 
+## Installation
+
+Precompiled binaries for `apkeep` on various platforms can be downloaded
+[here](https://github.com/EFForg/apkeep/releases).
+
+To install from `crates.io`, simply [install rust](https://www.rust-lang.org/tools/install) and
+run
+
+```shell
+cargo install apkeep
+```
+
+Or to install from the latest commit in our repository, run
+
+```shell
+cargo install --git https://github.com/EFForg/apkeep.git
+```
+
 ## Usage
 
 See [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE).
