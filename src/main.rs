@@ -98,10 +98,14 @@ async fn download_apps_from_google_play(
     outpath: &PathBuf,
 ) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
-    if let Err(_) = gpa.login(username, password).await {
-        println!(
-            "Could not log in to Google Play.  Please check your credentials and try again later."
-        );
+    if let Err(err) = gpa.login(username, password).await {
+        if matches!(err.kind(), GpapiErrorKind::SecurityCheck) {
+            println!("{}", err);
+        } else {
+            println!(
+                "Could not log in to Google Play.  Please check your credentials and try again later."
+            );
+        }
         std::process::exit(1);
     }
     let gpa = Rc::new(gpa);
