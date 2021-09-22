@@ -6,6 +6,7 @@ arg_enum! {
     pub enum DownloadSource {
         APKPure,
         GooglePlay,
+        FDroid,
     }
 }
 

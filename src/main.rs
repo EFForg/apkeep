@@ -51,6 +51,9 @@
 //!
 //! * The Google Play Store, given a username and password
 //! * APKPure, a third-party site hosting APKs available on the Play Store
+//! * F-Droid, a repository for free and open-source Android apps. `apkeep` verifies that these
+//! APKs are signed by the F-Droid mainerners, and alerts the user if an APK was downloaded but
+//! could not be verified
 //!
 //! # Usage Note
 //!
@@ -87,6 +90,9 @@ use tokio_dl_stream_to_disk::error::ErrorKind as TDSTDErrorKind;
 
 mod cli;
 use cli::DownloadSource;
+
+mod consts;
+mod fdroid;
 
 fn fetch_csv_list(csv: &str, field: usize) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(parse_csv_text(fs::read_to_string(csv)?, field))
@@ -177,7 +183,7 @@ async fn download_apps_from_apkpure(
         HeaderValue::from_static("arm64-v8a,armeabi-v7a,armeabi"),
     );
     headers.insert("x-gp", HeaderValue::from_static("1"));
-    let re = Rc::new(Regex::new(r"APKJ..(https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))").unwrap());
+    let re = Rc::new(Regex::new(consts::APKPURE_DOWNLOAD_URL_REGEX).unwrap());
 
     futures_util::stream::iter(
         app_ids.into_iter().map(|app_id| {
@@ -189,7 +195,7 @@ async fn download_apps_from_apkpure(
                 if sleep_duration > 0 {
                     sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
-                let detail_url = Url::parse(&format!("https://api.pureapk.com/m/v3/app/detail?hl=en-US&package_name={}", app_id)).unwrap();
+                let detail_url = Url::parse(&format!("{}{}", consts::APKPURE_DETAILS_URL_FORMAT, app_id)).unwrap();
                 let detail_response = http_client
                     .get(detail_url)
                     .headers(headers)
@@ -284,6 +290,9 @@ async fn main() {
                 &outpath,
             )
             .await;
+        }
+        DownloadSource::FDroid => {
+            fdroid::download_apps(list, parallel, sleep_duration, &outpath).await;
         }
     }
 }

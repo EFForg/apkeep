@@ -9,7 +9,7 @@ OPTIONS:
     -a, --app-id <app_id>                      Provide the ID of an app directly (e.g. com.instagram.android)
     -c, --csv <csv>                            CSV file to use
     -d, --download-source <download_source>    Where to download the APKs from [default: APKPure]  [possible values:
-                                               APKPure, GooglePlay]
+                                               APKPure, GooglePlay, FDroid]
     -f, --field <field>                        CSV field containing app IDs (used only if CSV is specified) [default: 1]
     -p, --password <google_password>           Google App Password (required if download source is Google Play)
     -u, --username <google_username>           Google Username (required if download source is Google Play)
