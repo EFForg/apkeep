@@ -43,6 +43,12 @@ download directly from the google play store:
 apkeep -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
 ```
 
+Or, to download from the F-Droid open source repository:
+
+```shell
+apkeep -a org.mozilla.fennec_fdroid -d FDroid .
+```
+
 Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
 APKs in a single run.
 
