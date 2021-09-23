@@ -7,7 +7,7 @@ sudo dpkg --add-architecture i386
 sudo dpkg --add-architecture arm64
 sudo apt-get -y update
 sudo apt-get -y dist-upgrade
-sudo apt-get -y install git build-essential libssl-dev pkg-config unzip
+sudo apt-get -y install git build-essential libssl-dev pkg-config unzip gcc-multilib
 sudo apt-get -y install libc6-armhf-cross libc6-dev-armhf-cross gcc-arm-linux-gnueabihf libssl-dev:armhf
 sudo apt-get -y install libc6-i386-cross libc6-dev-i386-cross gcc-i686-linux-gnu libssl-dev:i386
 sudo apt-get -y install libc6-arm64-cross libc6-dev-arm64-cross gcc-aarch64-linux-gnu libssl-dev:arm64

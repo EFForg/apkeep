@@ -60,7 +60,7 @@ You can use this tool to download from a few distinct sources.
 * The Google Play Store, given a username and password
 * APKPure, a third-party site hosting APKs available on the Play Store
 * F-Droid, a repository for free and open-source Android apps. `apkeep` verifies that these
-APKs are signed by the F-Droid mainerners, and alerts the user if an APK was downloaded but
+APKs are signed by the F-Droid maintainers, and alerts the user if an APK was downloaded but
 could not be verified
 
 ## Usage Note
