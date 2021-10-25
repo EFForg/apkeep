@@ -43,7 +43,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-dl-stream-to-disk",
- "x509-certificate",
+ "x509-certificate 0.3.0",
  "zip",
 ]
 
@@ -225,18 +225,18 @@ dependencies = [
 
 [[package]]
 name = "cryptographic-message-syntax"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68de8011a40ced0276b11aa1a65cbc85d615aba5510af84762f9b541c2edc7c6"
+checksum = "0868b83a179cd5052c7a84e8d9e9aedcacaa41018f925403b641363542f4c298"
 dependencies = [
  "bcder",
  "bytes",
  "chrono",
  "hex",
- "pem",
+ "pem 1.0.0",
  "reqwest",
  "ring",
- "x509-certificate",
+ "x509-certificate 0.4.0",
 ]
 
 [[package]]
@@ -870,6 +870,17 @@ name = "pem"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd56cbd21fea48d0c440b41cd69c589faacade08c992d9a54e471b79d0fd13eb"
+dependencies = [
+ "base64",
+ "once_cell",
+ "regex",
+]
+
+[[package]]
+name = "pem"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f2373df5233932a893d3bc2c78a0bf3f6d12590a1edd546b4fbefcac32c5c0f"
 dependencies = [
  "base64",
  "once_cell",
@@ -1712,7 +1723,22 @@ dependencies = [
  "bytes",
  "chrono",
  "hex",
- "pem",
+ "pem 0.8.3",
+ "ring",
+ "thiserror",
+]
+
+[[package]]
+name = "x509-certificate"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38d7f73df1495d9233459f43027f09a0cd8ad8416ff8ea350925708db03b5ab8"
+dependencies = [
+ "bcder",
+ "bytes",
+ "chrono",
+ "hex",
+ "pem 1.0.0",
  "ring",
  "thiserror",
 ]
