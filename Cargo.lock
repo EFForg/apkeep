@@ -187,9 +187,9 @@ dependencies = [
 
 [[package]]
 name = "configparser"
-version = "2.1.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7201ee416d124d589a820111ba755930df8b75855321a9a1b87312a0597ec8f"
+checksum = "06821ea598337a8412cf47c5b71c3bc694a7f0aed188ac28b836fab164a2c202"
 
 [[package]]
 name = "core-foundation"
@@ -402,8 +402,6 @@ dependencies = [
 [[package]]
 name = "gpapi"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc351d4151739e3e1650ff685eda08d42e0571cf962e974c01d2bf7cf93e8c25"
 dependencies = [
  "base64",
  "bincode",
@@ -1158,9 +1156,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.69"
+version = "1.0.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e466864e431129c7e0d3476b92f20458e5879919a0596c6472738d9fa2d342f8"
+checksum = "e277c495ac6cd1a01a58d0a0c574568b4d1ddf14f59965c6a58b8d96400b54f3"
 dependencies = [
  "itoa",
  "ryu",
