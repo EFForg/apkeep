@@ -187,9 +187,9 @@ dependencies = [
 
 [[package]]
 name = "configparser"
-version = "2.1.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7201ee416d124d589a820111ba755930df8b75855321a9a1b87312a0597ec8f"
+checksum = "06821ea598337a8412cf47c5b71c3bc694a7f0aed188ac28b836fab164a2c202"
 
 [[package]]
 name = "core-foundation"
@@ -401,9 +401,9 @@ dependencies = [
 
 [[package]]
 name = "gpapi"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc351d4151739e3e1650ff685eda08d42e0571cf962e974c01d2bf7cf93e8c25"
+checksum = "9869aa3eca2e727ae9f281c7fc30de53a5fd8e3f622998672c0f026805742ddf"
 dependencies = [
  "base64",
  "bincode",
@@ -1335,9 +1335,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.13.0"
+version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "588b2d10a336da58d877567cd8fb8a14b463e2104910f8132cd054b4b96e29ee"
+checksum = "52963f91310c08d91cb7bff5786dfc8b79642ab839e188187e92105dbfb9d2c8"
 dependencies = [
  "autocfg",
  "bytes",
