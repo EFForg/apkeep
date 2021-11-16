@@ -153,6 +153,9 @@ async fn download_apps_from_google_play(
                     Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
                         println!("Invalid app response for {}. Skipping...", app_id);
                     }
+                    Err(err) if matches!(err.kind(), GpapiErrorKind::PermissionDenied) => {
+                        println!("Permission denied when attempting to write file for {}. Skipping...", app_id);
+                    }
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                         match gpa.download(&app_id, None, &Path::new(outpath)).await {

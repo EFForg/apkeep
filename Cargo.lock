@@ -401,9 +401,9 @@ dependencies = [
 
 [[package]]
 name = "gpapi"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9869aa3eca2e727ae9f281c7fc30de53a5fd8e3f622998672c0f026805742ddf"
+checksum = "3c2403f0ef3b22044a7ff09808b6d277f2782bf56bee625b35ed57374250271d"
 dependencies = [
  "base64",
  "bincode",
@@ -1355,9 +1355,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-dl-stream-to-disk"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efbf80909afe33c9a852ac99041cee3eb2f0c4b33a3e96803f1c900347ef8bae"
+checksum = "6796c422aab3577536b7c031650e522ee7170323b101b9bddcefaa30328bb3b3"
 dependencies = [
  "bytes",
  "futures-util",
