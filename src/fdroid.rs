@@ -69,6 +69,10 @@ pub async fn download_apps(
                         println!("File already exists for {}. Skipping...", app_id);
                         None
                     },
+                    Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
+                        println!("Permission denied when attempting to write file for {}. Skipping...", app_id);
+                        None
+                    },
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                         match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, &Path::new(outpath), &fname).await {

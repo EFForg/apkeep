@@ -221,6 +221,9 @@ async fn download_apps_from_apkpure(
                                     Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
                                         println!("File already exists for {}. Skipping...", app_id);
                                     },
+                                    Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
+                                        println!("Permission denied when attempting to write file for {}. Skipping...", app_id);
+                                    },
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
                                         match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
