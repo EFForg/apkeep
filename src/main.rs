@@ -28,7 +28,7 @@
 //! apkeep -a com.instagram.android .
 //! ```
 //!
-//! This downloads from the default source, `APKPure`, which does not require credentials.  To
+//! This downloads from the default source, APKPure, which does not require credentials.  To
 //! download directly from the google play store:
 //!
 //! ```shell
@@ -39,6 +39,18 @@
 //!
 //! ```shell
 //! apkeep -a org.mozilla.fennec_fdroid -d FDroid .
+//! ```
+//!
+//! To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version` convention:
+//!
+//! ```shell
+//! apkeep -a com.instagram.android@1.2.3 .
+//! ```
+//!
+//! Or, to list what versions are available, use `-l`:
+//!
+//! ```shell
+//! apkeep -l -a org.mozilla.fennec_fdroid -d FDroid
 //! ```
 //!
 //! Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
@@ -80,8 +92,10 @@
 #[macro_use]
 extern crate clap;
 
+use std::collections::HashSet;
 use std::error::Error;
 use std::fs;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -90,7 +104,7 @@ use gpapi::error::ErrorKind as GpapiErrorKind;
 use gpapi::Gpapi;
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::Url;
+use reqwest::{Url, Response};
 use tokio::time::{sleep, Duration as TokioDuration};
 use tokio_dl_stream_to_disk::error::ErrorKind as TDSTDErrorKind;
 
@@ -100,18 +114,36 @@ use cli::DownloadSource;
 mod consts;
 mod fdroid;
 
-fn fetch_csv_list(csv: &str, field: usize) -> Result<Vec<String>, Box<dyn Error>> {
-    Ok(parse_csv_text(fs::read_to_string(csv)?, field))
+fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Result<Vec<(String, Option<String>)>, Box<dyn Error>> {
+    Ok(parse_csv_text(fs::read_to_string(csv)?, field, version_field))
 }
 
-fn parse_csv_text(text: String, field: usize) -> Vec<String> {
+fn parse_csv_text(text: String, field: usize, version_field: Option<usize>) -> Vec<(String, Option<String>)> {
     let field = field - 1;
+    let version_field = match version_field {
+        None => None,
+        Some(version_field) => Some(version_field - 1),
+    };
     text.split("\n")
         .filter_map(|l| {
             let entry = l.trim();
             let mut entry_vec = entry.split(",").collect::<Vec<&str>>();
             if entry_vec.len() > field && !(entry_vec.len() == 1 && entry_vec[0].len() == 0) {
-                Some(String::from(entry_vec.remove(field)))
+                match version_field {
+                    Some(mut version_field) if entry_vec.len() > version_field => {
+                        if version_field > field {
+                            version_field = version_field - 1;
+                        }
+                        let app_id = String::from(entry_vec.remove(field));
+                        let app_version = String::from(entry_vec.remove(version_field));
+                        if app_version.len() > 0 {
+                            Some((app_id, Some(app_version)))
+                        } else {
+                            Some((app_id, None))
+                        }
+                    },
+                    _ => Some((String::from(entry_vec.remove(field)), None)),
+                }
             } else {
                 None
             }
@@ -120,7 +152,7 @@ fn parse_csv_text(text: String, field: usize) -> Vec<String> {
 }
 
 async fn download_apps_from_google_play(
-    app_ids: Vec<String>,
+    apps: Vec<(String, Option<String>)>,
     parallel: usize,
     sleep_duration: u64,
     username: &str,
@@ -138,52 +170,59 @@ async fn download_apps_from_google_play(
     let gpa = Rc::new(gpa);
 
     futures_util::stream::iter(
-        app_ids.into_iter().map(|app_id| {
+        apps.into_iter().map(|app| {
+            let (app_id, app_version) = app;
             let gpa = Rc::clone(&gpa);
             async move {
-                println!("Downloading {}...", app_id);
-                if sleep_duration > 0 {
-                    sleep(TokioDuration::from_millis(sleep_duration)).await;
-                }
-                match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                    Ok(_) => println!("{} downloaded successfully!", app_id),
-                    Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
-                        println!("File already exists for {}. Skipping...", app_id);
+                if app_version.is_none() {
+                    println!("Downloading {}...", app_id);
+                    if sleep_duration > 0 {
+                        sleep(TokioDuration::from_millis(sleep_duration)).await;
                     }
-                    Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
-                        println!("Invalid app response for {}. Skipping...", app_id);
-                    }
-                    Err(err) if matches!(err.kind(), GpapiErrorKind::PermissionDenied) => {
-                        println!("Permission denied when attempting to write file for {}. Skipping...", app_id);
-                    }
-                    Err(_) => {
-                        println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
-                        match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                            Ok(_) => println!("{} downloaded successfully!", app_id),
-                            Err(_) => {
-                                println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
-                                match gpa.download(&app_id, None, &Path::new(outpath)).await {
-                                    Ok(_) => println!("{} downloaded successfully!", app_id),
-                                    Err(_) => {
-                                        println!("An error has occurred attempting to download {}. Skipping...", app_id);
+                    match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                        Ok(_) => println!("{} downloaded successfully!", app_id),
+                        Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
+                            println!("File already exists for {}. Skipping...", app_id);
+                        }
+                        Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
+                            println!("Invalid app response for {}. Skipping...", app_id);
+                        }
+                        Err(err) if matches!(err.kind(), GpapiErrorKind::PermissionDenied) => {
+                            println!("Permission denied when attempting to write file for {}. Skipping...", app_id);
+                        }
+                        Err(_) => {
+                            println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
+                            match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                                Ok(_) => println!("{} downloaded successfully!", app_id),
+                                Err(_) => {
+                                    println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
+                                    match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                                        Ok(_) => println!("{} downloaded successfully!", app_id),
+                                        Err(_) => {
+                                            println!("An error has occurred attempting to download {}. Skipping...", app_id);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                } else {
+                    println!("Specific versions can not be downloaded from Google Play ({}@{}). Skipping...", app_id, app_version.unwrap());
                 }
             }
         })
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-async fn download_apps_from_apkpure(
-    app_ids: Vec<String>,
-    parallel: usize,
-    sleep_duration: u64,
-    outpath: &PathBuf,
-) {
-    let http_client = Rc::new(reqwest::Client::new());
+fn list_versions_from_google_play(apps: Vec<(String, Option<String>)>) {
+    for app in apps {
+        let (app_id, _) = app;
+        println!("Versions available for {} on Google Play:", app_id);
+        println!("| Google Play does not make old versions of apps available.");
+    }
+}
+
+fn apkpure_http_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert("x-cv", HeaderValue::from_static("3172501"));
     headers.insert("x-sv", HeaderValue::from_static("29"));
@@ -192,91 +231,179 @@ async fn download_apps_from_apkpure(
         HeaderValue::from_static("arm64-v8a,armeabi-v7a,armeabi"),
     );
     headers.insert("x-gp", HeaderValue::from_static("1"));
+    headers
+}
+async fn download_apps_from_apkpure(
+    apps: Vec<(String, Option<String>)>,
+    parallel: usize,
+    sleep_duration: u64,
+    outpath: &PathBuf,
+) {
+    let http_client = Rc::new(reqwest::Client::new());
+    let headers = apkpure_http_headers();
     let re = Rc::new(Regex::new(consts::APKPURE_DOWNLOAD_URL_REGEX).unwrap());
 
     futures_util::stream::iter(
-        app_ids.into_iter().map(|app_id| {
+        apps.into_iter().map(|app| {
+            let (app_id, app_version) = app;
             let http_client = Rc::clone(&http_client);
             let re = Rc::clone(&re);
             let headers = headers.clone();
             async move {
-                println!("Downloading {}...", app_id);
+                let app_string = match app_version {
+                    Some(ref version) => {
+                        println!("Downloading {} version {}...", app_id, version);
+                        format!("{}@{}", app_id, version)
+                    },
+                    None => {
+                        println!("Downloading {}...", app_id);
+                        format!("{}", app_id)
+                    },
+                };
                 if sleep_duration > 0 {
                     sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
-                let detail_url = Url::parse(&format!("{}{}", consts::APKPURE_DETAILS_URL_FORMAT, app_id)).unwrap();
-                let detail_response = http_client
-                    .get(detail_url)
-                    .headers(headers)
-                    .send().await.unwrap();
-                match detail_response.status() {
-                    reqwest::StatusCode::OK => {
-                        let body = detail_response.text().await.unwrap();
-                        match re.captures(&body) {
-                            Some(caps) if caps.len() >= 2 => {
-                                let download_url = caps.get(1).unwrap().as_str();
-                                let fname = format!("{}.apk", app_id);
-                                match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                    Ok(_) => println!("{} downloaded successfully!", app_id),
-                                    Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
-                                        println!("File already exists for {}. Skipping...", app_id);
-                                    },
-                                    Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
-                                        println!("Permission denied when attempting to write file for {}. Skipping...", app_id);
-                                    },
-                                    Err(_) => {
-                                        println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
-                                        match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                            Ok(_) => println!("{} downloaded successfully!", app_id),
-                                            Err(_) => {
-                                                println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
-                                                match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
-                                                    Ok(_) => println!("{} downloaded successfully!", app_id),
-                                                    Err(_) => {
-                                                        println!("An error has occurred attempting to download {}. Skipping...", app_id);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            _ => {
-                                println!("Could not get download URL for {}. Skipping...", app_id);
-                            }
-                        }
-                    },
-                    _ => {
-                        println!("Invalid app response for {}. Skipping...", app_id);
-                    }
+                if app_version.is_none() {
+                    let detail_url = Url::parse(&format!("{}{}", consts::APKPURE_DETAILS_URL_FORMAT, app_id)).unwrap();
+                    let detail_response = http_client
+                        .get(detail_url)
+                        .headers(headers)
+                        .send().await.unwrap();
+                    download_from_response(detail_response, Box::new(re), app_string, &outpath).await;
+                } else {
+                    let versions_url = Url::parse(&format!("{}{}", consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
+                    let versions_response = http_client
+                        .get(versions_url)
+                        .headers(headers)
+                        .send().await.unwrap();
+                    let app_version = app_version.unwrap();
+                    let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), consts::APKPURE_DOWNLOAD_URL_REGEX);
+                    let re = Regex::new(&regex_string).unwrap();
+                    download_from_response(versions_response, Box::new(Box::new(re)), app_string, &outpath).await;
                 }
             }
         })
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
+async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &PathBuf) {
+    let fname = format!("{}.apk", app_string);
+    match response.status() {
+        reqwest::StatusCode::OK => {
+            let body = response.text().await.unwrap();
+            match re.captures(&body) {
+                Some(caps) if caps.len() >= 2 => {
+                    let download_url = caps.get(1).unwrap().as_str();
+                    match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                        Ok(_) => println!("{} downloaded successfully!", app_string),
+                        Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
+                            println!("File already exists for {}. Skipping...", app_string);
+                        },
+                        Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
+                            println!("Permission denied when attempting to write file for {}. Skipping...", app_string);
+                        },
+                        Err(_) => {
+                            println!("An error has occurred attempting to download {}.  Retry #1...", app_string);
+                            match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                                Ok(_) => println!("{} downloaded successfully!", app_string),
+                                Err(_) => {
+                                    println!("An error has occurred attempting to download {}.  Retry #2...", app_string);
+                                    match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                                        Ok(_) => println!("{} downloaded successfully!", app_string),
+                                        Err(_) => {
+                                            println!("An error has occurred attempting to download {}. Skipping...", app_string);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                _ => {
+                    println!("Could not get download URL for {}. Skipping...", app_string);
+                }
+            }
+
+        },
+        _ => {
+            println!("Invalid app response for {}. Skipping...", app_string);
+        }
+    }
+}
+
+async fn list_versions_from_apkpure(apps: Vec<(String, Option<String>)>) {
+    let http_client = Rc::new(reqwest::Client::new());
+    let re = Rc::new(Regex::new(r"([[:alnum:]\.-]+):\([[:xdigit:]]{40,}").unwrap());
+    let headers = apkpure_http_headers();
+    for app in apps {
+        let (app_id, _) = app;
+        let http_client = Rc::clone(&http_client);
+        let re = Rc::clone(&re);
+        let headers = headers.clone();
+        async move {
+            println!("Versions available for {} on APKPure:", app_id);
+            let versions_url = Url::parse(&format!("{}{}", consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
+            let versions_response = http_client
+                .get(versions_url)
+                .headers(headers)
+                .send().await.unwrap();
+
+            match versions_response.status() {
+                reqwest::StatusCode::OK => {
+                    let body = versions_response.text().await.unwrap();
+                    let mut versions = HashSet::new();
+                    for caps in re.captures_iter(&body) {
+                        if caps.len() >= 2 {
+                            versions.insert(caps.get(1).unwrap().as_str().to_string());
+                        }
+                    }
+                    let mut versions = versions.drain().collect::<Vec<String>>();
+                    versions.sort();
+                    println!("| {}", versions.join(", "));
+                }
+                _ => {
+                    println!("| Invalid app response for {}. Skipping...", app_id);
+                }
+            }
+        }.await;
+    }
+}
+
+
 #[tokio::main]
 async fn main() {
     let matches = cli::app().get_matches();
 
     let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
-    let parallel = value_t!(matches, "parallel", usize).unwrap();
-    let sleep_duration = value_t!(matches, "sleep_duration", u64).unwrap();
-    let outpath = fs::canonicalize(matches.value_of("OUTPATH").unwrap()).unwrap();
-    if !Path::new(&outpath).is_dir() {
-        println!("{}\n\nOUTPATH is not a valid directory", matches.usage());
-        std::process::exit(1);
-    };
-    let list = match matches.value_of("app_id") {
-        Some(app_id) => vec![app_id.to_string()],
+    let list = match matches.value_of("app") {
+        Some(app) => {
+            let mut app_vec: Vec<String> = app.splitn(2, "@").map(|s| String::from(s)).collect();
+            let app_id = app_vec.remove(0);
+            let app_version = match app_vec.len() {
+                1 => Some(app_vec.remove(0)),
+                _ => None,
+            };
+            vec![(app_id, app_version)]
+        },
         None => {
             let csv = matches.value_of("csv").unwrap();
             let field = value_t!(matches, "field", usize).unwrap();
+            let version_field: Option<usize> = value_t!(matches, "version_field", usize).ok();
             if field < 1 {
-                println!("{}\n\nField must be 1 or greater", matches.usage());
+                println!("{}\n\nApp ID field must be 1 or greater", matches.usage());
                 std::process::exit(1);
             }
-            match fetch_csv_list(csv, field) {
+            if let Some(version_field) = version_field {
+                if version_field < 1 {
+                    println!("{}\n\nVersion field must be 1 or greater", matches.usage());
+                    std::process::exit(1);
+                }
+                if field == version_field {
+                    println!("{}\n\nApp ID and Version fields must be different", matches.usage());
+                    std::process::exit(1);
+                }
+            }
+            match fetch_csv_list(csv, field, version_field) {
                 Ok(csv_list) => csv_list,
                 Err(err) => {
                     println!("{}\n\n{:?}", matches.usage(), err);
@@ -286,25 +413,52 @@ async fn main() {
         }
     };
 
-    match download_source {
-        DownloadSource::APKPure => {
-            download_apps_from_apkpure(list, parallel, sleep_duration, &outpath).await;
+    if matches.is_present("list_versions") {
+        match download_source {
+            DownloadSource::APKPure => {
+                list_versions_from_apkpure(list).await;
+            }
+            DownloadSource::GooglePlay => {
+                list_versions_from_google_play(list);
+            }
+            DownloadSource::FDroid => {
+                fdroid::list_versions(list).await;
+            }
         }
-        DownloadSource::GooglePlay => {
-            let username = matches.value_of("google_username").unwrap();
-            let password = matches.value_of("google_password").unwrap();
-            download_apps_from_google_play(
-                list,
-                parallel,
-                sleep_duration,
-                username,
-                password,
-                &outpath,
-            )
-            .await;
+    } else {
+        let parallel = value_t!(matches, "parallel", usize).unwrap();
+        let sleep_duration = value_t!(matches, "sleep_duration", u64).unwrap();
+        let outpath = matches.value_of("OUTPATH");
+        if outpath.is_none() {
+            println!("{}\n\nOUTPATH must be specified when downloading files", matches.usage());
+            std::process::exit(1);
         }
-        DownloadSource::FDroid => {
-            fdroid::download_apps(list, parallel, sleep_duration, &outpath).await;
+        let outpath = fs::canonicalize(outpath.unwrap()).unwrap();
+        if !Path::new(&outpath).is_dir() {
+            println!("{}\n\nOUTPATH is not a valid directory", matches.usage());
+            std::process::exit(1);
+        };
+
+        match download_source {
+            DownloadSource::APKPure => {
+                download_apps_from_apkpure(list, parallel, sleep_duration, &outpath).await;
+            }
+            DownloadSource::GooglePlay => {
+                let username = matches.value_of("google_username").unwrap();
+                let password = matches.value_of("google_password").unwrap();
+                download_apps_from_google_play(
+                    list,
+                    parallel,
+                    sleep_duration,
+                    username,
+                    password,
+                    &outpath,
+                )
+                .await;
+            }
+            DownloadSource::FDroid => {
+                fdroid::download_apps(list, parallel, sleep_duration, &outpath).await;
+            }
         }
     }
 }

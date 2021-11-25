@@ -14,12 +14,12 @@ pub fn app() -> App<'static, 'static> {
     App::new(format!("apkeep v{}", VERSION))
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
-        .usage("apkeep <-a app_id | -c csv [-f field]> [-d download_source] [-r parallel] OUTPATH")
+        .usage("apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH")
         .arg(
-            Arg::with_name("app_id")
-                .help("Provide the ID of an app directly (e.g. com.instagram.android)")
+            Arg::with_name("app")
+                .help("Provide the ID and optionally the version of an app directly (e.g. com.instagram.android)")
                 .short("a")
-                .long("app-id")
+                .long("app")
                 .takes_value(true),
         )
         .arg(
@@ -28,8 +28,8 @@ pub fn app() -> App<'static, 'static> {
                 .short("c")
                 .long("csv")
                 .takes_value(true)
-                .conflicts_with("app_id")
-                .required_unless("app_id"),
+                .conflicts_with("app")
+                .required_unless("app"),
         )
         .arg(
             Arg::with_name("field")
@@ -38,6 +38,21 @@ pub fn app() -> App<'static, 'static> {
                 .long("field")
                 .takes_value(true)
                 .default_value("1"),
+        )
+        .arg(
+            Arg::with_name("version_field")
+                .help("CSV field containing versions (used only if CSV is specified)")
+                .short("v")
+                .long("version-field")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
+            Arg::with_name("list_versions")
+                .help("List the versions available")
+                .short("l")
+                .long("list-versions")
+                .required(false),
         )
         .arg(
             Arg::with_name("download_source")
@@ -85,7 +100,6 @@ pub fn app() -> App<'static, 'static> {
         .arg(
             Arg::with_name("OUTPATH")
                 .help("Path to store output files")
-                .required(true)
                 .index(1),
         )
 }

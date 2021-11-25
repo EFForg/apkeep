@@ -3,10 +3,14 @@ William Budington <bill@eff.org>
 Downloads APKs from various sources
 
 USAGE:
-    apkeep <-a app_id | -c csv [-f field]> [-d download_source] [-r parallel] OUTPATH
+    apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH
+
+FLAGS:
+    -l, --list-versions    List the versions available
 
 OPTIONS:
-    -a, --app-id <app_id>                      Provide the ID of an app directly (e.g. com.instagram.android)
+    -a, --app <app>                            Provide the ID and optionally the version of an app directly (e.g.
+                                               com.instagram.android)
     -c, --csv <csv>                            CSV file to use
     -d, --download-source <download_source>    Where to download the APKs from [default: APKPure]  [possible values:
                                                APKPure, GooglePlay, FDroid]
@@ -15,6 +19,7 @@ OPTIONS:
     -u, --username <google_username>           Google Username (required if download source is Google Play)
     -r, --parallel <parallel>                  The number of parallel APK fetches to run at a time [default: 4]
     -s, --sleep-duration <sleep_duration>      Sleep duration (in ms) before download requests [default: 0]
+    -v, --version-field <version_field>        CSV field containing versions (used only if CSV is specified)
 
 ARGS:
     <OUTPATH>    Path to store output files

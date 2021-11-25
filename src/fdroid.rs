@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::error::Error;
 use std::fs;
 use std::io;
@@ -21,12 +22,7 @@ use crate::consts;
 mod error;
 use error::Error as FDroidError;
 
-pub async fn download_apps(
-    app_ids: Vec<String>,
-    parallel: usize,
-    sleep_duration: u64,
-    outpath: &PathBuf,
-) {
+async fn retrieve_index_or_exit() -> Value {
     let dir = match tempdir() {
         Ok(dir) => dir,
         Err(_) => {
@@ -35,16 +31,25 @@ pub async fn download_apps(
         }
     };
     let files = download_and_extract_index_to_tempdir(&dir).await;
-    let index = match verify_and_return_index(&dir, &files) {
+    match verify_and_return_index(&dir, &files) {
         Ok(index) => index,
         Err(_) => {
             println!("Could not verify F-Droid package index. Exiting.");
             std::process::exit(1);
         },
-    };
-    
-    let (apps, repo_address) = match parse_json(index, app_ids) {
-        Ok((apps, repo_address)) => (apps, repo_address),
+    }
+}
+
+pub async fn download_apps(
+    apps: Vec<(String, Option<String>)>,
+    parallel: usize,
+    sleep_duration: u64,
+    outpath: &PathBuf,
+) {
+    let index = retrieve_index_or_exit().await;
+
+    let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps) {
+        Ok((fdroid_apps, repo_address)) => (fdroid_apps, repo_address),
         Err(_) => {
             println!("Could not parse JSON of F-Droid package index. Exiting.");
             std::process::exit(1);
@@ -53,36 +58,45 @@ pub async fn download_apps(
 
     let repo_address = Rc::new(repo_address);
     futures_util::stream::iter(
-        apps.into_iter().map(|app| {
-            let (app_id, url_filename, hash) = app;
+        fdroid_apps.into_iter().map(|fdroid_app| {
+            let (app_id, app_version, url_filename, hash) = fdroid_app;
             let repo_address = Rc::clone(&repo_address);
             async move {
-                println!("Downloading {}...", app_id);
+                let app_string = match app_version {
+                    Some(ref version) => {
+                        println!("Downloading {} version {}...", app_id, version);
+                        format!("{}@{}", app_id, version)
+                    },
+                    None => {
+                        println!("Downloading {}...", app_id);
+                        format!("{}", app_id)
+                    },
+                };
+                let fname = format!("{}.apk", app_string);
                 if sleep_duration > 0 {
                     sleep(Duration::from_millis(sleep_duration)).await;
                 }
                 let download_url = format!("{}/{}", repo_address, url_filename);
-                let fname = format!("{}.apk", app_id);
                 let sha256sum = match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, &Path::new(outpath), &fname).await {
                     Ok(sha256sum) => Some(sha256sum),
                     Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
-                        println!("File already exists for {}. Skipping...", app_id);
+                        println!("File already exists for {}. Skipping...", app_string);
                         None
                     },
                     Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
-                        println!("Permission denied when attempting to write file for {}. Skipping...", app_id);
+                        println!("Permission denied when attempting to write file for {}. Skipping...", app_string);
                         None
                     },
                     Err(_) => {
-                        println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
+                        println!("An error has occurred attempting to download {}.  Retry #1...", app_string);
                         match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, &Path::new(outpath), &fname).await {
                             Ok(sha256sum) => Some(sha256sum),
                             Err(_) => {
-                                println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
+                                println!("An error has occurred attempting to download {}.  Retry #2...", app_string);
                                 match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, &Path::new(outpath), &fname).await {
                                     Ok(sha256sum) => Some(sha256sum),
                                     Err(_) => {
-                                        println!("An error has occurred attempting to download {}. Skipping...", app_id);
+                                        println!("An error has occurred attempting to download {}. Skipping...", app_string);
                                         None
                                     }
                                 }
@@ -92,9 +106,9 @@ pub async fn download_apps(
                 };
                 if let Some(sha256sum) = sha256sum {
                     if sha256sum == hash {
-                        println!("{} downloaded successfully!", app_id);
+                        println!("{} downloaded successfully!", app_string);
                     } else {
-                        println!("{} downloaded, but the sha256sum does not match the one signed by F-Droid. Proceed with caution.", app_id);
+                        println!("{} downloaded, but the sha256sum does not match the one signed by F-Droid. Proceed with caution.", app_string);
                     }
                 }
             }
@@ -102,7 +116,7 @@ pub async fn download_apps(
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-fn parse_json(index: Value, app_ids: Vec<String>) -> Result<(Vec<(String, String, Vec<u8>)>, String), FDroidError> { //(Vec<(String, String)>, String), FDroidError> {
+fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>) -> Result<(Vec<(String, Option<String>, String, Vec<u8>)>, String), FDroidError> {
     let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
     let repo_address = index_map
         .get("repo").ok_or(FDroidError::Dummy)?
@@ -113,23 +127,52 @@ fn parse_json(index: Value, app_ids: Vec<String>) -> Result<(Vec<(String, String
         .get("packages").ok_or(FDroidError::Dummy)?
         .as_object().ok_or(FDroidError::Dummy)?;
 
-    let apps: Vec<(String, String, Vec<u8>)> = app_ids.into_iter().map(|app_id| {
+    let fdroid_apps: Vec<(String, Option<String>, String, Vec<u8>)> = apps.into_iter().map(|app| {
+        let (app_id, app_version) = app;
         if packages.contains_key(&app_id) {
             let app_array_value = packages.get(&app_id).unwrap();
             if app_array_value.is_array() {
                 let app_array = app_array_value.as_array().unwrap();
-                if app_array.len() >= 1 && app_array[0].is_object() {
-                    let app = app_array[0].as_object().unwrap();
-                    if app.contains_key("apkName") && app.contains_key("hash") {
-                        let filename_value = app.get("apkName").unwrap();
-                        let hash_value = app.get("hash").unwrap();
-                        if filename_value.is_string() && hash_value.is_string() {
-                            let filename = filename_value.as_str().unwrap().to_string();
-                            if let Ok(hash) = hex::decode(hash_value.as_str().unwrap().to_string()) {
-                                return Some((app_id.to_string(), filename, hash));
+                if app_version.is_none() {
+                    if app_array.len() >= 1 && app_array[0].is_object() {
+                        let fdroid_app = app_array[0].as_object().unwrap();
+                        if fdroid_app.contains_key("apkName") && fdroid_app.contains_key("hash") {
+                            let filename_value = fdroid_app.get("apkName").unwrap();
+                            let hash_value = fdroid_app.get("hash").unwrap();
+                            if filename_value.is_string() && hash_value.is_string() {
+                                let filename = filename_value.as_str().unwrap().to_string();
+                                if let Ok(hash) = hex::decode(hash_value.as_str().unwrap().to_string()) {
+                                    return Some((app_id, app_version, filename, hash));
+                                }
                             }
                         }
                     }
+                } else {
+                    for single_app in app_array {
+                        if single_app.is_object() {
+                            let fdroid_app = single_app.as_object().unwrap();
+                            if fdroid_app.contains_key("versionName") {
+                                let version_name_value = fdroid_app.get("versionName").unwrap();
+                                if version_name_value.is_string() {
+                                    let version_name = version_name_value.as_str().unwrap().to_string();
+                                    if version_name == String::from(app_version.as_ref().unwrap()) {
+                                        if fdroid_app.contains_key("apkName") && fdroid_app.contains_key("hash") {
+                                            let filename_value = fdroid_app.get("apkName").unwrap();
+                                            let hash_value = fdroid_app.get("hash").unwrap();
+                                            if filename_value.is_string() && hash_value.is_string() {
+                                                let filename = filename_value.as_str().unwrap().to_string();
+                                                if let Ok(hash) = hex::decode(hash_value.as_str().unwrap().to_string()) {
+                                                    return Some((app_id, app_version, filename, hash));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    println!("Could not find version {} of {}. Skipping...", app_version.unwrap(), app_id);
+                    return None;
                 }
             }
         } else {
@@ -138,7 +181,52 @@ fn parse_json(index: Value, app_ids: Vec<String>) -> Result<(Vec<(String, String
         None
     }).filter_map(|i| i).collect();
 
-    Ok((apps, repo_address.to_string()))
+    Ok((fdroid_apps, repo_address.to_string()))
+}
+
+pub async fn list_versions(apps: Vec<(String, Option<String>)>) {
+    let index = retrieve_index_or_exit().await;
+    if parse_json_display_versions(index, apps).is_err() {
+        println!("Could not parse JSON of F-Droid package index. Exiting.");
+    };
+}
+
+fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>) -> Result<(), FDroidError> {
+    let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
+
+    let packages = index_map
+        .get("packages").ok_or(FDroidError::Dummy)?
+        .as_object().ok_or(FDroidError::Dummy)?;
+
+    for app in apps {
+        let (app_id, _) = app;
+        println!("Versions available for {} on F-Droid:", app_id);
+        if packages.contains_key(&app_id) {
+            let app_array_value = packages.get(&app_id).unwrap();
+            if app_array_value.is_array() {
+                let app_array = app_array_value.as_array().unwrap();
+                let mut versions = HashSet::new();
+                for single_app in app_array {
+                    if single_app.is_object() {
+                        let fdroid_app = single_app.as_object().unwrap();
+                        if fdroid_app.contains_key("versionName") {
+                            let version_name_value = fdroid_app.get("versionName").unwrap();
+                            if version_name_value.is_string() {
+                                let version_name = version_name_value.as_str().unwrap().to_string();
+                                versions.insert(version_name);
+                            }
+                        }
+                    }
+                }
+                let mut versions = versions.drain().collect::<Vec<String>>();
+                versions.sort();
+                println!("| {}", versions.join(", "));
+            }
+        } else {
+            println!("| Could not find {} in package list. Skipping...", app_id);
+        }
+    }
+    Ok(())
 }
 
 fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<Value, Box<dyn Error>> {

@@ -36,7 +36,7 @@ The simplest example is to download a single APK to the current directory:
 apkeep -a com.instagram.android .
 ```
 
-This downloads from the default source, `APKPure`, which does not require credentials.  To
+This downloads from the default source, APKPure, which does not require credentials.  To
 download directly from the google play store:
 
 ```shell
@@ -47,6 +47,18 @@ Or, to download from the F-Droid open source repository:
 
 ```shell
 apkeep -a org.mozilla.fennec_fdroid -d FDroid .
+```
+
+To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version` convention:
+
+```shell
+apkeep -a com.instagram.android@1.2.3 .
+```
+
+Or, to list what versions are available, use `-l`:
+
+```shell
+apkeep -l -a org.mozilla.fennec_fdroid -d FDroid
 ```
 
 Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
