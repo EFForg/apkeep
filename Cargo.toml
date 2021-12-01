@@ -17,6 +17,7 @@ clap = "2.3"
 gpapi = "0.5"
 tokio-dl-stream-to-disk = { version = "0.3", features = ["sha256sum"] }
 tempfile = "3"
+dirs = "4.0"
 zip = "0.5"
 cryptographic-message-syntax = "0.5"
 openssl = "0.10"

@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::error::Error;
-use std::fs;
+use std::fs::{self, File};
 use std::io;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -23,20 +24,90 @@ mod error;
 use error::Error as FDroidError;
 
 async fn retrieve_index_or_exit() -> Value {
-    let dir = match tempdir() {
-        Ok(dir) => dir,
+    let temp_dir = match tempdir() {
+        Ok(temp_dir) => temp_dir,
         Err(_) => {
             println!("Could not create temporary directory for F-Droid package index. Exiting.");
             std::process::exit(1);
         }
     };
-    let files = download_and_extract_index_to_tempdir(&dir).await;
-    match verify_and_return_index(&dir, &files) {
-        Ok(index) => index,
-        Err(_) => {
-            println!("Could not verify F-Droid package index. Exiting.");
+    let config_dir = match dirs::config_dir() {
+        Some(mut config_dir) => {
+            config_dir.push("apkeep");
+            if !config_dir.is_dir() &&  fs::create_dir(&config_dir).is_err() {
+                println!("Could not create a config directory for apkeep to store F-Droid package index. Exiting.");
+                std::process::exit(1);
+            }
+            config_dir
+        },
+        None => {
+            println!("Could not find a config directory for apkeep to store F-Droid package index. Exiting.");
             std::process::exit(1);
         },
+    };
+    let mut latest_etag_file = PathBuf::from(&config_dir);
+    latest_etag_file.push("latest_etag");
+    let latest_etag = match File::open(&latest_etag_file) {
+        Ok(mut file) => {
+            let mut contents = String::new();
+            if file.read_to_string(&mut contents).is_err() {
+                println!("Could not read latest_etag file for F-Droid package index. Exiting.");
+                std::process::exit(1);
+            }
+            Some(contents)
+        },
+        Err(_) => None,
+    };
+
+    let http_client = reqwest::Client::new();
+    let index_response = http_client
+        .head(consts::FDROID_INDEX_URL)
+        .send().await.unwrap();
+
+    let etag = if index_response.headers().contains_key("ETag") {
+        index_response.headers()["ETag"].to_str().unwrap()
+    } else {
+        println!("Could not receive etag for F-Droid package index. Exiting.");
+        std::process::exit(1);
+    };
+
+    let mut index_file = PathBuf::from(&config_dir);
+    index_file.push("index_v1.json");
+    if latest_etag.is_some() && latest_etag.unwrap() == etag {
+        let index = {
+            let mut file = File::open(&index_file).unwrap();
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).unwrap();
+            contents
+        };
+        serde_json::from_str(&index).unwrap()
+    } else {
+        let files = download_and_extract_index_to_tempdir(&temp_dir).await;
+        match verify_and_return_index(&temp_dir, &files) {
+            Ok(index) => {
+                match serde_json::from_str(&index) {
+                    Ok(index_value) => {
+                        if fs::write(index_file, index).is_err() {
+                            println!("Could not write F-Droid package index to config file. Exiting.");
+                            std::process::exit(1);
+                        }
+                        if fs::write(latest_etag_file, etag).is_err() {
+                            println!("Could not write F-Droid etag to config file. Exiting.");
+                            std::process::exit(1);
+                        }
+                        index_value
+                    }
+                    Err(_) => {
+                        println!("Could not decode JSON for F-Droid package index. Exiting.");
+                        std::process::exit(1);
+                    }
+                }
+            },
+            Err(_) => {
+                println!("Could not verify F-Droid package index. Exiting.");
+                std::process::exit(1);
+            },
+        }
     }
 }
 
@@ -229,7 +300,7 @@ fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>
     Ok(())
 }
 
-fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<Value, Box<dyn Error>> {
+fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<String, Box<dyn Error>> {
     println!("Verifying...");
     let re = Regex::new(consts::FDROID_SIGNATURE_BLOCK_FILE_REGEX).unwrap();
     let cert_file = {
@@ -303,7 +374,7 @@ fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<Value, 
         }
     }
 
-    Ok(serde_json::from_str(std::str::from_utf8(&index_file_data)?)?)
+    Ok(String::from(std::str::from_utf8(&index_file_data)?))
 }
 
 fn get_certificate_and_signer_info_from_signature_block_file(signature_block_file: PathBuf) -> Result<(CapturedX509Certificate, SignerInfo), Box<dyn Error>> {
