@@ -34,7 +34,7 @@ async fn retrieve_index_or_exit() -> Value {
     let config_dir = match dirs::config_dir() {
         Some(mut config_dir) => {
             let create_dir = |config_dir: &PathBuf| {
-                if !config_dir.is_dir() &&  fs::create_dir(&config_dir).is_err() {
+                if !config_dir.is_dir() &&  fs::create_dir(config_dir).is_err() {
                     println!("Could not create a config directory for apkeep to store F-Droid package index. Exiting.");
                     std::process::exit(1);
                 }
