@@ -20,16 +20,16 @@ pub fn app() -> App<'static, 'static> {
                 .help("Provide the ID and optionally the version of an app directly (e.g. com.instagram.android)")
                 .short("a")
                 .long("app")
-                .takes_value(true),
+                .takes_value(true)
+                .conflicts_with("csv")
+                .required_unless("csv"),
         )
         .arg(
             Arg::with_name("csv")
                 .help("CSV file to use")
                 .short("c")
                 .long("csv")
-                .takes_value(true)
-                .conflicts_with("app")
-                .required_unless("app"),
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("field")
