@@ -14,7 +14,7 @@ sudo apt-get -y install libc6-arm64-cross libc6-dev-arm64-cross gcc-aarch64-linu
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/get_rust.sh
 bash /tmp/get_rust.sh -y
 source ~/.cargo/env
-rustup target install armv7-unknown-linux-gnueabihf i686-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-linux-android armv7-linux-androideabi
+rustup target install armv7-unknown-linux-gnueabihf i686-unknown-linux-gnu aarch64-unknown-linux-gnu aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
 git clone https://www.github.com/EFForg/apkeep.git
 cd apkeep
@@ -54,6 +54,20 @@ make clean
 make
 cd ../apkeep
 cargo build --release --target=armv7-linux-androideabi
+
+cd $OPENSSL_DIR
+make clean
+./Configure android-x86 -D__ANDROID_API__=21
+make
+cd ../apkeep
+cargo build --release --target=i686-linux-android
+
+cd $OPENSSL_DIR
+make clean
+./Configure android-x86_64 -D__ANDROID_API__=21
+make
+cd ../apkeep
+cargo build --release --target=x86_64-linux-android
 EOF
 
 scp apkeep-compiler:~/apkeep/target/release/apkeep ./apkeep-x86_64-unknown-linux-gnu
@@ -62,3 +76,5 @@ scp apkeep-compiler:~/apkeep/target/i686-unknown-linux-gnu/release/apkeep ./apke
 scp apkeep-compiler:~/apkeep/target/aarch64-unknown-linux-gnu/release/apkeep ./apkeep-aarch64-unknown-linux-gnu
 scp apkeep-compiler:~/apkeep/target/aarch64-linux-android/release/apkeep ./apkeep-aarch64-linux-android
 scp apkeep-compiler:~/apkeep/target/armv7-linux-androideabi/release/apkeep ./apkeep-armv7-linux-androideabi
+scp apkeep-compiler:~/apkeep/target/i686-linux-android/release/apkeep ./apkeep-i686-linux-android
+scp apkeep-compiler:~/apkeep/target/x86_64-linux-android/release/apkeep ./apkeep-x86_64-linux-android
