@@ -1,6 +1,6 @@
 use clap::{App, Arg, ArgEnum, PossibleValue};
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum DownloadSource {

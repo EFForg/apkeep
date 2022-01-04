@@ -118,23 +118,20 @@ fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Resu
 
 fn parse_csv_text(text: String, field: usize, version_field: Option<usize>) -> Vec<(String, Option<String>)> {
     let field = field - 1;
-    let version_field = match version_field {
-        None => None,
-        Some(version_field) => Some(version_field - 1),
-    };
-    text.split("\n")
+    let version_field = version_field.map(|version_field| version_field - 1);
+    text.split('\n')
         .filter_map(|l| {
             let entry = l.trim();
-            let mut entry_vec = entry.split(",").collect::<Vec<&str>>();
-            if entry_vec.len() > field && !(entry_vec.len() == 1 && entry_vec[0].len() == 0) {
+            let mut entry_vec = entry.split(',').collect::<Vec<&str>>();
+            if entry_vec.len() > field && !(entry_vec.len() == 1 && entry_vec[0].is_empty()) {
                 match version_field {
                     Some(mut version_field) if entry_vec.len() > version_field => {
                         if version_field > field {
-                            version_field = version_field - 1;
+                            version_field -= 1;
                         }
                         let app_id = String::from(entry_vec.remove(field));
                         let app_version = String::from(entry_vec.remove(version_field));
-                        if app_version.len() > 0 {
+                        if !app_version.is_empty() {
                             Some((app_id, Some(app_version)))
                         } else {
                             Some((app_id, None))
@@ -177,7 +174,7 @@ async fn download_apps_from_google_play(
                     if sleep_duration > 0 {
                         sleep(TokioDuration::from_millis(sleep_duration)).await;
                     }
-                    match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                    match gpa.download(&app_id, None, Path::new(outpath)).await {
                         Ok(_) => println!("{} downloaded successfully!", app_id),
                         Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
                             println!("File already exists for {}. Skipping...", app_id);
@@ -190,11 +187,11 @@ async fn download_apps_from_google_play(
                         }
                         Err(_) => {
                             println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
-                            match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                            match gpa.download(&app_id, None, Path::new(outpath)).await {
                                 Ok(_) => println!("{} downloaded successfully!", app_id),
                                 Err(_) => {
                                     println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
-                                    match gpa.download(&app_id, None, &Path::new(outpath)).await {
+                                    match gpa.download(&app_id, None, Path::new(outpath)).await {
                                         Ok(_) => println!("{} downloaded successfully!", app_id),
                                         Err(_) => {
                                             println!("An error has occurred attempting to download {}. Skipping...", app_id);
@@ -255,7 +252,7 @@ async fn download_apps_from_apkpure(
                     },
                     None => {
                         println!("Downloading {}...", app_id);
-                        format!("{}", app_id)
+                        app_id.to_string()
                     },
                 };
                 if sleep_duration > 0 {
@@ -267,7 +264,7 @@ async fn download_apps_from_apkpure(
                         .get(detail_url)
                         .headers(headers)
                         .send().await.unwrap();
-                    download_from_response(detail_response, Box::new(re), app_string, &outpath).await;
+                    download_from_response(detail_response, Box::new(re), app_string, outpath).await;
                 } else {
                     let versions_url = Url::parse(&format!("{}{}", consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
                     let versions_response = http_client
@@ -277,7 +274,7 @@ async fn download_apps_from_apkpure(
                     let app_version = app_version.unwrap();
                     let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), consts::APKPURE_DOWNLOAD_URL_REGEX);
                     let re = Regex::new(&regex_string).unwrap();
-                    download_from_response(versions_response, Box::new(Box::new(re)), app_string, &outpath).await;
+                    download_from_response(versions_response, Box::new(Box::new(re)), app_string, outpath).await;
                 }
             }
         })
@@ -292,7 +289,7 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
             match re.captures(&body) {
                 Some(caps) if caps.len() >= 2 => {
                     let download_url = caps.get(1).unwrap().as_str();
-                    match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                    match tokio_dl_stream_to_disk::download(download_url, Path::new(outpath), &fname).await {
                         Ok(_) => println!("{} downloaded successfully!", app_string),
                         Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
                             println!("File already exists for {}. Skipping...", app_string);
@@ -302,11 +299,11 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
                         },
                         Err(_) => {
                             println!("An error has occurred attempting to download {}.  Retry #1...", app_string);
-                            match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                            match tokio_dl_stream_to_disk::download(download_url, Path::new(outpath), &fname).await {
                                 Ok(_) => println!("{} downloaded successfully!", app_string),
                                 Err(_) => {
                                     println!("An error has occurred attempting to download {}.  Retry #2...", app_string);
-                                    match tokio_dl_stream_to_disk::download(download_url, &Path::new(outpath), &fname).await {
+                                    match tokio_dl_stream_to_disk::download(download_url, Path::new(outpath), &fname).await {
                                         Ok(_) => println!("{} downloaded successfully!", app_string),
                                         Err(_) => {
                                             println!("An error has occurred attempting to download {}. Skipping...", app_string);
@@ -378,7 +375,7 @@ async fn main() {
     let download_source: DownloadSource = matches.value_of_t("download_source").unwrap();
     let list = match matches.value_of("app") {
         Some(app) => {
-            let mut app_vec: Vec<String> = app.splitn(2, "@").map(|s| String::from(s)).collect();
+            let mut app_vec: Vec<String> = app.splitn(2, '@').map(String::from).collect();
             let app_id = app_vec.remove(0);
             let app_version = match app_vec.len() {
                 1 => Some(app_vec.remove(0)),

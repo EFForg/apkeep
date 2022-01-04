@@ -144,7 +144,7 @@ pub async fn download_apps(
                     },
                     None => {
                         println!("Downloading {}...", app_id);
-                        format!("{}", app_id)
+                        app_id.to_string()
                     },
                 };
                 let fname = format!("{}.apk", app_string);
@@ -152,7 +152,7 @@ pub async fn download_apps(
                     sleep(Duration::from_millis(sleep_duration)).await;
                 }
                 let download_url = format!("{}/{}", repo_address, url_filename);
-                let sha256sum = match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, &Path::new(outpath), &fname).await {
+                let sha256sum = match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, Path::new(outpath), &fname).await {
                     Ok(sha256sum) => Some(sha256sum),
                     Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
                         println!("File already exists for {}. Skipping...", app_string);
@@ -164,11 +164,11 @@ pub async fn download_apps(
                     },
                     Err(_) => {
                         println!("An error has occurred attempting to download {}.  Retry #1...", app_string);
-                        match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, &Path::new(outpath), &fname).await {
+                        match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, Path::new(outpath), &fname).await {
                             Ok(sha256sum) => Some(sha256sum),
                             Err(_) => {
                                 println!("An error has occurred attempting to download {}.  Retry #2...", app_string);
-                                match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, &Path::new(outpath), &fname).await {
+                                match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, Path::new(outpath), &fname).await {
                                     Ok(sha256sum) => Some(sha256sum),
                                     Err(_) => {
                                         println!("An error has occurred attempting to download {}. Skipping...", app_string);
@@ -209,7 +209,7 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
             if app_array_value.is_array() {
                 let app_array = app_array_value.as_array().unwrap();
                 if app_version.is_none() {
-                    if app_array.len() >= 1 && app_array[0].is_object() {
+                    if !app_array.is_empty() && app_array[0].is_object() {
                         let fdroid_app = app_array[0].as_object().unwrap();
                         if fdroid_app.contains_key("apkName") && fdroid_app.contains_key("hash") {
                             let filename_value = fdroid_app.get("apkName").unwrap();
@@ -230,15 +230,13 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
                                 let version_name_value = fdroid_app.get("versionName").unwrap();
                                 if version_name_value.is_string() {
                                     let version_name = version_name_value.as_str().unwrap().to_string();
-                                    if version_name == String::from(app_version.as_ref().unwrap()) {
-                                        if fdroid_app.contains_key("apkName") && fdroid_app.contains_key("hash") {
-                                            let filename_value = fdroid_app.get("apkName").unwrap();
-                                            let hash_value = fdroid_app.get("hash").unwrap();
-                                            if filename_value.is_string() && hash_value.is_string() {
-                                                let filename = filename_value.as_str().unwrap().to_string();
-                                                if let Ok(hash) = hex::decode(hash_value.as_str().unwrap().to_string()) {
-                                                    return Some((app_id, app_version, filename, hash));
-                                                }
+                                    if version_name == *app_version.as_ref().unwrap() && fdroid_app.contains_key("apkName") && fdroid_app.contains_key("hash") {
+                                        let filename_value = fdroid_app.get("apkName").unwrap();
+                                        let hash_value = fdroid_app.get("hash").unwrap();
+                                        if filename_value.is_string() && hash_value.is_string() {
+                                            let filename = filename_value.as_str().unwrap().to_string();
+                                            if let Ok(hash) = hex::decode(hash_value.as_str().unwrap().to_string()) {
+                                                return Some((app_id, app_version, filename, hash));
                                             }
                                         }
                                     }
@@ -254,7 +252,7 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
             println!("Could not find {} in package list. Skipping...", app_id);
         }
         None
-    }).filter_map(|i| i).collect();
+    }).flatten().collect();
 
     Ok((fdroid_apps, repo_address.to_string()))
 }
@@ -310,11 +308,11 @@ fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<String,
     let cert_file = {
         let mut cert_files = vec![];
         for file in files {
-            if re.is_match(&file) {
+            if re.is_match(file) {
                 cert_files.push(file.clone());
             }
         }
-        if cert_files.len() < 1 {
+        if cert_files.is_empty() {
             return Err(Box::new(SimpleError::new("Found no certificate file for F-Droid repository.")));
         }
         if cert_files.len() > 1 {
@@ -345,7 +343,7 @@ fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<String,
     let manifest_file_data = fs::read(manifest_file)?;
     {
         let signed_file_regex = Regex::new(r"\r\nSHA1-Digest-Manifest: (.*)\r\n").unwrap();
-        let signed_file_manifest_sha1sum = base64::decode(match signed_file_regex.captures(&signed_file_string) {
+        let signed_file_manifest_sha1sum = base64::decode(match signed_file_regex.captures(signed_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
             _ => {
                 return Err(Box::new(SimpleError::new("Could not retrieve the manifest sha1sum from the signed file.")));
@@ -364,7 +362,7 @@ fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<String,
     let index_file_data = fs::read(index_file)?;
     {
         let manifest_file_regex = Regex::new(r"\r\nName: index-v1\.json\r\nSHA1-Digest: (.*)\r\n").unwrap();
-        let manifest_file_index_sha1sum = base64::decode(match manifest_file_regex.captures(&manifest_file_string) {
+        let manifest_file_index_sha1sum = base64::decode(match manifest_file_regex.captures(manifest_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
             _ => {
                 return Err(Box::new(SimpleError::new("Could not retrieve the index sha1sum from the manifest file.")));
@@ -389,14 +387,14 @@ fn get_certificate_and_signer_info_from_signature_block_file(signature_block_fil
             if certificates.len() > 1 {
                 return Err(Box::new(SimpleError::new("Too many certificates provided.")));
             }
-            if certificates.len() < 1 {
+            if certificates.is_empty() {
                 return Err(Box::new(SimpleError::new("No certificate provided.")));
             }
             let signatories: Vec<&SignerInfo> = signed_data.signers().collect();
             if signatories.len() > 1 {
                 return Err(Box::new(SimpleError::new("Too many signatories provided.")));
             }
-            if signatories.len() < 1 {
+            if signatories.is_empty() {
                 return Err(Box::new(SimpleError::new("No signatories provided.")));
             }
             Ok((certificates[0].clone(), signatories[0].clone()))
