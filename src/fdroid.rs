@@ -119,7 +119,7 @@ pub async fn download_apps(
     apps: Vec<(String, Option<String>)>,
     parallel: usize,
     sleep_duration: u64,
-    outpath: &PathBuf,
+    outpath: &Path,
 ) {
     let index = retrieve_index_or_exit().await;
 
@@ -191,7 +191,8 @@ pub async fn download_apps(
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>) -> Result<(Vec<(String, Option<String>, String, Vec<u8>)>, String), FDroidError> {
+type DownloadInformation = (Vec<(String, Option<String>, String, Vec<u8>)>, String);
+fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>) -> Result<DownloadInformation, FDroidError> {
     let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
     let repo_address = index_map
         .get("repo").ok_or(FDroidError::Dummy)?
@@ -302,7 +303,7 @@ fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>
     Ok(())
 }
 
-fn verify_and_return_index(dir: &TempDir, files: &Vec<String>) -> Result<String, Box<dyn Error>> {
+fn verify_and_return_index(dir: &TempDir, files: &[String]) -> Result<String, Box<dyn Error>> {
     println!("Verifying...");
     let re = Regex::new(consts::FDROID_SIGNATURE_BLOCK_FILE_REGEX).unwrap();
     let cert_file = {

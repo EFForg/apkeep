@@ -94,7 +94,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fs;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 
 use futures_util::StreamExt;
@@ -112,7 +112,8 @@ use cli::DownloadSource;
 mod consts;
 mod fdroid;
 
-fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Result<Vec<(String, Option<String>)>, Box<dyn Error>> {
+type CSVList = Vec<(String, Option<String>)>;
+fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Result<CSVList, Box<dyn Error>> {
     Ok(parse_csv_text(fs::read_to_string(csv)?, field, version_field))
 }
 
@@ -152,7 +153,7 @@ async fn download_apps_from_google_play(
     sleep_duration: u64,
     username: &str,
     password: &str,
-    outpath: &PathBuf,
+    outpath: &Path,
 ) {
     let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
     if let Err(err) = gpa.login(username, password).await {
@@ -232,7 +233,7 @@ async fn download_apps_from_apkpure(
     apps: Vec<(String, Option<String>)>,
     parallel: usize,
     sleep_duration: u64,
-    outpath: &PathBuf,
+    outpath: &Path,
 ) {
     let http_client = Rc::new(reqwest::Client::new());
     let headers = apkpure_http_headers();
@@ -258,30 +259,29 @@ async fn download_apps_from_apkpure(
                 if sleep_duration > 0 {
                     sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
-                if app_version.is_none() {
+                if let Some(app_version) = app_version {
+                    let versions_url = Url::parse(&format!("{}{}", consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
+                    let versions_response = http_client
+                        .get(versions_url)
+                        .headers(headers)
+                        .send().await.unwrap();
+                    let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), consts::APKPURE_DOWNLOAD_URL_REGEX);
+                    let re = Regex::new(&regex_string).unwrap();
+                    download_from_response(versions_response, Box::new(Box::new(re)), app_string, outpath).await;
+                } else {
                     let detail_url = Url::parse(&format!("{}{}", consts::APKPURE_DETAILS_URL_FORMAT, app_id)).unwrap();
                     let detail_response = http_client
                         .get(detail_url)
                         .headers(headers)
                         .send().await.unwrap();
                     download_from_response(detail_response, Box::new(re), app_string, outpath).await;
-                } else {
-                    let versions_url = Url::parse(&format!("{}{}", consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
-                    let versions_response = http_client
-                        .get(versions_url)
-                        .headers(headers)
-                        .send().await.unwrap();
-                    let app_version = app_version.unwrap();
-                    let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), consts::APKPURE_DOWNLOAD_URL_REGEX);
-                    let re = Regex::new(&regex_string).unwrap();
-                    download_from_response(versions_response, Box::new(Box::new(re)), app_string, outpath).await;
                 }
             }
         })
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &PathBuf) {
+async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &Path) {
     let fname = format!("{}.apk", app_string);
     match response.status() {
         reqwest::StatusCode::OK => {
