@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate clap;
-
 use std::fs::File;
 
 include!("src/cli.rs");

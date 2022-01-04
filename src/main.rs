@@ -32,16 +32,17 @@
 //! download directly from the google play store:
 //!
 //! ```shell
-//! apkeep -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
+//! apkeep -a com.instagram.android -d google-play -u 'someone@gmail.com' -p somepass .
 //! ```
 //!
 //! Or, to download from the F-Droid open source repository:
 //!
 //! ```shell
-//! apkeep -a org.mozilla.fennec_fdroid -d FDroid .
+//! apkeep -a org.mozilla.fennec_fdroid -d f-droid .
 //! ```
 //!
-//! To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version` convention:
+//! To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
+//! convention:
 //!
 //! ```shell
 //! apkeep -a com.instagram.android@1.2.3 .
@@ -50,7 +51,7 @@
 //! Or, to list what versions are available, use `-l`:
 //!
 //! ```shell
-//! apkeep -l -a org.mozilla.fennec_fdroid -d FDroid
+//! apkeep -l -a org.mozilla.fennec_fdroid -d f-droid
 //! ```
 //!
 //! Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
@@ -67,11 +68,11 @@
 //!
 //! You can use this tool to download from a few distinct sources.
 //!
-//! * The Google Play Store, given a username and password
-//! * APKPure, a third-party site hosting APKs available on the Play Store
-//! * F-Droid, a repository for free and open-source Android apps. `apkeep` verifies that these
-//! APKs are signed by the F-Droid maintainers, and alerts the user if an APK was downloaded but
-//! could not be verified
+//! * The Google Play Store (`-d google-play`), given a username and password
+//! * APKPure (`-d apk-pure`), a third-party site hosting APKs available on the Play Store
+//! * F-Droid (`-d f-droid`), a repository for free and open-source Android apps. `apkeep`
+//! verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
+//! was downloaded but could not be verified
 //!
 //! # Usage Note
 //!
@@ -88,9 +89,6 @@
 //! location, language, etc. will be available.  In time we hope to make this profile configurable.
 //! * Paid and DRM apps will not be available.
 //! * Using Tor will make it a lot more likely that the download will fail.
-
-#[macro_use]
-extern crate clap;
 
 use std::collections::HashSet;
 use std::error::Error;
@@ -372,9 +370,12 @@ async fn list_versions_from_apkpure(apps: Vec<(String, Option<String>)>) {
 
 #[tokio::main]
 async fn main() {
+    let usage = {
+        cli::app().render_usage()
+    };
     let matches = cli::app().get_matches();
 
-    let download_source = value_t!(matches.value_of("download_source"), DownloadSource).unwrap();
+    let download_source: DownloadSource = matches.value_of_t("download_source").unwrap();
     let list = match matches.value_of("app") {
         Some(app) => {
             let mut app_vec: Vec<String> = app.splitn(2, "@").map(|s| String::from(s)).collect();
@@ -387,26 +388,26 @@ async fn main() {
         },
         None => {
             let csv = matches.value_of("csv").unwrap();
-            let field = value_t!(matches, "field", usize).unwrap();
-            let version_field: Option<usize> = value_t!(matches, "version_field", usize).ok();
+            let field: usize = matches.value_of_t("field").unwrap();
+            let version_field: Option<usize> = matches.value_of_t("version_field").ok();
             if field < 1 {
-                println!("{}\n\nApp ID field must be 1 or greater", matches.usage());
+                println!("{}\n\nApp ID field must be 1 or greater", usage);
                 std::process::exit(1);
             }
             if let Some(version_field) = version_field {
                 if version_field < 1 {
-                    println!("{}\n\nVersion field must be 1 or greater", matches.usage());
+                    println!("{}\n\nVersion field must be 1 or greater", usage);
                     std::process::exit(1);
                 }
                 if field == version_field {
-                    println!("{}\n\nApp ID and Version fields must be different", matches.usage());
+                    println!("{}\n\nApp ID and Version fields must be different", usage);
                     std::process::exit(1);
                 }
             }
             match fetch_csv_list(csv, field, version_field) {
                 Ok(csv_list) => csv_list,
                 Err(err) => {
-                    println!("{}\n\n{:?}", matches.usage(), err);
+                    println!("{}\n\n{:?}", usage, err);
                     std::process::exit(1);
                 }
             }
@@ -426,16 +427,16 @@ async fn main() {
             }
         }
     } else {
-        let parallel = value_t!(matches, "parallel", usize).unwrap();
-        let sleep_duration = value_t!(matches, "sleep_duration", u64).unwrap();
+        let parallel: usize = matches.value_of_t("parallel").unwrap();
+        let sleep_duration: u64 = matches.value_of_t("sleep_duration").unwrap();
         let outpath = matches.value_of("OUTPATH");
         if outpath.is_none() {
-            println!("{}\n\nOUTPATH must be specified when downloading files", matches.usage());
+            println!("{}\n\nOUTPATH must be specified when downloading files", usage);
             std::process::exit(1);
         }
         let outpath = fs::canonicalize(outpath.unwrap()).unwrap();
         if !Path::new(&outpath).is_dir() {
-            println!("{}\n\nOUTPATH is not a valid directory", matches.usage());
+            println!("{}\n\nOUTPATH is not a valid directory", usage);
             std::process::exit(1);
         };
 

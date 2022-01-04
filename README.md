@@ -40,16 +40,17 @@ This downloads from the default source, APKPure, which does not require credenti
 download directly from the google play store:
 
 ```shell
-apkeep -a com.instagram.android -d GooglePlay -u 'someone@gmail.com' -p somepass .
+apkeep -a com.instagram.android -d google-play -u 'someone@gmail.com' -p somepass .
 ```
 
 Or, to download from the F-Droid open source repository:
 
 ```shell
-apkeep -a org.mozilla.fennec_fdroid -d FDroid .
+apkeep -a org.mozilla.fennec_fdroid -d f-droid .
 ```
 
-To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version` convention:
+To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
+convention:
 
 ```shell
 apkeep -a com.instagram.android@1.2.3 .
@@ -58,7 +59,7 @@ apkeep -a com.instagram.android@1.2.3 .
 Or, to list what versions are available, use `-l`:
 
 ```shell
-apkeep -l -a org.mozilla.fennec_fdroid -d FDroid
+apkeep -l -a org.mozilla.fennec_fdroid -d f-droid
 ```
 
 Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
@@ -75,11 +76,11 @@ just treat it as a CSV with a single field.
 
 You can use this tool to download from a few distinct sources.
 
-* The Google Play Store, given a username and password
-* APKPure, a third-party site hosting APKs available on the Play Store
-* F-Droid, a repository for free and open-source Android apps. `apkeep` verifies that these
-APKs are signed by the F-Droid maintainers, and alerts the user if an APK was downloaded but
-could not be verified
+* The Google Play Store (`-d google-play`), given a username and password
+* APKPure (`-d apk-pure`), a third-party site hosting APKs available on the Play Store
+* F-Droid (`-d f-droid`), a repository for free and open-source Android apps. `apkeep`
+verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
+was downloaded but could not be verified
 
 ## Usage Note
 
