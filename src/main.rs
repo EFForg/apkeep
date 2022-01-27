@@ -16,6 +16,13 @@
 //! cargo install --git https://github.com/EFForg/apkeep.git
 //! ```
 //!
+//! Docker images are also available through the GitHub Container Registry. Aside from using a
+//! specific release version, the following floating tags are available:
+//!
+//! - stable: tracks the latest stable release (recommended)
+//! - latest: tracks the latest release, including pre-releases
+//! - edge: tracks the latest commit
+//!
 //! # Usage
 //!
 //! See [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE).
@@ -56,6 +63,14 @@
 //!
 //! Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
 //! APKs in a single run.
+//!
+//! All the above examples can also be used in Docker with minimal changes. For example, to
+//! download a single APK to your chosen output directory:
+//!
+//! ```shell
+//! docker run --rm -v output_path:/output ghcr.io/efforg/apkeep:stable -a com.instagram.android
+//! /output
+//! ```
 //!
 //! # Specify a CSV file or individual app ID
 //!

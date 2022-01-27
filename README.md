@@ -35,65 +35,50 @@ specific release version, the following floating tags are available:
 
 See [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE).
 
-For the Docker image the same flags apply, except that the output path is set to /output. So
-make sure to have a volume mounted to /output.
-
 ## Examples
 
 The simplest example is to download a single APK to the current directory:
 
 ```shell
-# Local
 apkeep -a com.instagram.android .
-
-# Docker
-docker run --rm -v output_path:/output ghcr.io/efforg/apkeep:stable -a com.instagram.android
 ```
 
 This downloads from the default source, APKPure, which does not require credentials.  To
 download directly from the google play store:
 
 ```shell
-# Local
 apkeep -a com.instagram.android -d google-play -u 'someone@gmail.com' -p somepass .
-
-# Docker
-docker run --rm -v output_path:/output ghcr.io/efforg/apkeep:stable -a com.instagram.android -d google-play -u 'someone@gmail.com' -p somepass
 ```
 
 Or, to download from the F-Droid open source repository:
 
 ```shell
-# Local
 apkeep -a org.mozilla.fennec_fdroid -d f-droid .
-
-# Docker
-docker run --rm -v output_path:/output ghcr.io/efforg/apkeep:stable -a org.mozilla.fennec_fdroid -d f-droid
 ```
 
 To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
 convention:
 
 ```shell
-# Local
 apkeep -a com.instagram.android@1.2.3 .
-
-# Docker
-docker run --rm -v output_path:/output ghcr.io/efforg/apkeep:stable -a com.instagram.android@1.2.3
 ```
 
 Or, to list what versions are available, use `-l`:
 
 ```shell
-# Local
 apkeep -l -a org.mozilla.fennec_fdroid -d f-droid
-
-# Docker
-docker run --rm ghcr.io/efforg/apkeep:stable -l -a org.mozilla.fennec_fdroid -d f-droid
 ```
 
 Refer to [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE) to download multiple
 APKs in a single run.
+
+All the above examples can also be used in Docker with minimal changes. For example, to
+download a single APK to your chosen output directory:
+
+```shell
+docker run --rm -v output_path:/output ghcr.io/efforg/apkeep:stable -a com.instagram.android
+/output
+```
 
 ## Specify a CSV file or individual app ID
 

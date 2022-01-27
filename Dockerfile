@@ -6,4 +6,4 @@ WORKDIR /app
 
 RUN cargo install --path .
 
-ENTRYPOINT ["apkeep", "/output"]
+ENTRYPOINT ["apkeep"]
