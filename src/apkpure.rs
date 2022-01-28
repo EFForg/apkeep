@@ -52,22 +52,17 @@ pub async fn download_apps(
                 if sleep_duration > 0 {
                     sleep(TokioDuration::from_millis(sleep_duration)).await;
                 }
+                let versions_url = Url::parse(&format!("{}{}", crate::consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
+                let versions_response = http_client
+                    .get(versions_url)
+                    .headers(headers)
+                    .send().await.unwrap();
                 if let Some(app_version) = app_version {
-                    let versions_url = Url::parse(&format!("{}{}", crate::consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
-                    let versions_response = http_client
-                        .get(versions_url)
-                        .headers(headers)
-                        .send().await.unwrap();
                     let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), crate::consts::APKPURE_DOWNLOAD_URL_REGEX);
                     let re = Regex::new(&regex_string).unwrap();
                     download_from_response(versions_response, Box::new(Box::new(re)), app_string, outpath).await;
                 } else {
-                    let detail_url = Url::parse(&format!("{}{}", crate::consts::APKPURE_DETAILS_URL_FORMAT, app_id)).unwrap();
-                    let detail_response = http_client
-                        .get(detail_url)
-                        .headers(headers)
-                        .send().await.unwrap();
-                    download_from_response(detail_response, Box::new(re), app_string, outpath).await;
+                    download_from_response(versions_response, Box::new(re), app_string, outpath).await;
                 }
             }
         })

@@ -1,4 +1,3 @@
-pub const APKPURE_DETAILS_URL_FORMAT: &str = "https://api.pureapk.com/m/v3/app/detail?hl=en-US&package_name=";
 pub const APKPURE_VERSIONS_URL_FORMAT: &str = "https://api.pureapk.com/m/v3/cms/app_version?hl=en-US&package_name=";
 pub const APKPURE_DOWNLOAD_URL_REGEX: &str = r"APKJ..(https?://(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))";
 pub const FDROID_INDEX_URL: &str = "https://f-droid.org/repo/index-v1.jar";
