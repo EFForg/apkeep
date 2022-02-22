@@ -1,4 +1,4 @@
-use clap::{App, Arg, ArgEnum, PossibleValue};
+use clap::{Command, Arg, ArgEnum, PossibleValue};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -40,8 +40,8 @@ impl std::str::FromStr for DownloadSource {
     }
 }
 
-pub fn app() -> App<'static> {
-    App::new(format!("apkeep v{}", VERSION))
+pub fn app() -> Command<'static> {
+    Command::new(format!("apkeep v{}", VERSION))
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
         .override_usage("apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH")
