@@ -95,7 +95,7 @@ export CFLAGS_x86_64_pc_windows_msvc="$CL_FLAGS"
 export CXXFLAGS_x86_64_pc_windows_msvc="$CL_FLAGS"
 export OPENSSL_STATIC=1
 
-cd ../apkeep
+cd ~/apkeep
 cargo build --release --target x86_64-pc-windows-msvc
 EOF
 
