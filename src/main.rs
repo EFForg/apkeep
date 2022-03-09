@@ -105,6 +105,7 @@
 //! * Paid and DRM apps will not be available.
 //! * Using Tor will make it a lot more likely that the download will fail.
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -161,6 +162,21 @@ async fn main() {
     let matches = cli::app().get_matches();
 
     let download_source: DownloadSource = matches.value_of_t("download_source").unwrap();
+    let options: HashMap<&str, &str> = match matches.value_of("options") {
+        Some(options) => {
+            let mut options_map = HashMap::new();
+            for option in options.split(",") {
+                match option.split_once("=") {
+                    Some((key, value)) => {
+                        options_map.insert(key, value);
+                    },
+                    None => {}
+                }
+            }
+            options_map
+        },
+        None => HashMap::new()
+    };
     let list = match matches.value_of("app") {
         Some(app) => {
             let mut app_vec: Vec<String> = app.splitn(2, '@').map(String::from).collect();
@@ -239,6 +255,7 @@ async fn main() {
                     username,
                     password,
                     &outpath,
+                    options,
                 )
                 .await;
             }

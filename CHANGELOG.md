@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- `options` command-line option to specify options specific to a download source
+
 ## [0.9.0] - 2022-02-22
 - Fix bug where another package is fetched for certain ids in APKPure
 - Updated usage for download sources

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 
@@ -13,8 +14,13 @@ pub async fn download_apps(
     username: &str,
     password: &str,
     outpath: &Path,
+    mut options: HashMap<&str, &str>,
 ) {
-    let mut gpa = Gpapi::new("en_US", "UTC", "hero2lte");
+    let locale = options.remove("locale").unwrap_or("en_US");
+    let timezone = options.remove("timezone").unwrap_or("UTC");
+    let device = options.remove("device").unwrap_or("hero2lte");
+    let mut gpa = Gpapi::new(locale, timezone, device);
+
     if let Err(err) = gpa.login(username, password).await {
         match err.kind() {
             GpapiErrorKind::SecurityCheck | GpapiErrorKind::EncryptLogin => println!("{}", err),

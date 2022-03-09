@@ -29,6 +29,9 @@ OPTIONS:
     -l, --list-versions
             List the versions available
 
+    -o, --options <options>
+            A comma-separated list of additional options to pass to the download source
+
     -p, --password <google_password>
             Google App Password (required if download source is Google Play)
 

@@ -95,6 +95,14 @@ pub fn app() -> Command<'static> {
                 .required(false),
         )
         .arg(
+            Arg::new("options")
+                .help("A comma-separated list of additional options to pass to the download source")
+                .short('o')
+                .long("options")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
             Arg::new("google_username")
                 .help("Google Username (required if download source is Google Play)")
                 .short('u')
