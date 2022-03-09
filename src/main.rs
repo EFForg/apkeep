@@ -100,8 +100,6 @@
 //! * Google may terminate your Google account based on Terms of Service violations.  Read their
 //! [Terms of Service](https://play.google.com/about/play-terms/index.html), avoid violating it,
 //! and choose an account where this outcome is acceptable.
-//! * The session works with a specific "device profile," so only APKs available for that device,
-//! location, language, etc. will be available.  In time we hope to make this profile configurable.
 //! * Paid and DRM apps will not be available.
 //! * Using Tor will make it a lot more likely that the download will fail.
 
