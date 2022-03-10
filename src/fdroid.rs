@@ -33,25 +33,23 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
         }
     };
     let mut custom_repo = false;
-    let (repo, fingerprint) = match options.get("repo") {
-        Some(repo) => {
-            custom_repo = true;
-            if let Some((repo, fingerprint)) = repo.split_once("?fingerprint=") {
-                let fingerprint = match hex::decode(fingerprint) {
-                    Ok(hex_fingerprint) => hex_fingerprint,
-                    Err(_) => {
-                        println!("Fingerprint must be specified as valid hex. Exiting.");
-                        std::process::exit(1);
-                    }
-                };
-                (repo.to_string(), fingerprint)
-            } else {
-                println!("F-Droid repository must be specified with a fingerprint URL parameter. Exiting.");
-                std::process::exit(1);
-            }
-        },
-        None => (consts::FDROID_REPO.to_string(), Vec::from(consts::FDROID_INDEX_FINGERPRINT))
-    };
+    let mut repo = consts::FDROID_REPO.to_string();
+    let mut fingerprint = Vec::from(consts::FDROID_INDEX_FINGERPRINT);
+    if let Some(full_repo_option) = options.get("repo") {
+        custom_repo = true;
+        if let Some((repo_option, fingerprint_option)) = full_repo_option.split_once("?fingerprint=") {
+            fingerprint = match hex::decode(fingerprint_option) {
+                Ok(hex_fingerprint) => hex_fingerprint,
+                Err(_) => {
+                    println!("Fingerprint must be specified as valid hex. Exiting.");
+                    std::process::exit(1);
+                }
+            };
+            repo = repo_option.to_string();
+        } else {
+            repo = full_repo_option.to_string();
+        }
+    }
     let config_dir = match dirs::config_dir() {
         Some(mut config_dir) => {
             let create_dir = |config_dir: &PathBuf| {
