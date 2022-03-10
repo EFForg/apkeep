@@ -233,10 +233,14 @@ async fn main() {
             println!("{}\n\nOUTPATH must be specified when downloading files", usage);
             std::process::exit(1);
         }
-        let outpath = fs::canonicalize(outpath.unwrap()).unwrap();
-        if !Path::new(&outpath).is_dir() {
-            println!("{}\n\nOUTPATH is not a valid directory", usage);
-            std::process::exit(1);
+        let outpath = match fs::canonicalize(outpath.unwrap()) {
+            Ok(outpath) if Path::new(&outpath).is_dir() => {
+                outpath
+            },
+            _ => {
+                println!("{}\n\nOUTPATH is not a valid directory", usage);
+                std::process::exit(1);
+            }
         };
 
         match download_source {
