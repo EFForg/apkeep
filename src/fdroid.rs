@@ -115,7 +115,11 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
         serde_json::from_str(&index).unwrap()
     } else {
         let files = download_and_extract_index_to_tempdir(&temp_dir, &repo).await;
-        match verify_and_return_index(&temp_dir, &files, &fingerprint) {
+        let verify_index = match options.get("verify-index") {
+            Some(&"false") => false,
+            _ => true,
+        };
+        match verify_and_return_index(&temp_dir, &files, &fingerprint, verify_index) {
             Ok(index) => {
                 match serde_json::from_str(&index) {
                     Ok(index_value) => {
@@ -135,7 +139,8 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
                     }
                 }
             },
-            Err(_) => {
+            Err(err) => {
+                println!("{}", err);
                 println!("Could not verify F-Droid package index. Exiting.");
                 std::process::exit(1);
             },
@@ -332,8 +337,7 @@ fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>
     Ok(())
 }
 
-fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8]) -> Result<String, Box<dyn Error>> {
-    println!("Verifying...");
+fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], verify_index: bool) -> Result<String, Box<dyn Error>> {
     let re = Regex::new(consts::FDROID_SIGNATURE_BLOCK_FILE_REGEX).unwrap();
     let cert_file = {
         let mut cert_files = vec![];
@@ -358,7 +362,8 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8]) 
 
     let signed_file_data = fs::read(signed_file)?;
 
-    {
+    if verify_index {
+        println!("Verifying...");
         let (cert, signer_info) = get_certificate_and_signer_info_from_signature_block_file(cert_file)?;
         cert.verify_signed_data(signed_file_data.clone(), signer_info.signature())?;
         let x509 = X509::from_der(&cert.encode_ber()?)?;
@@ -371,7 +376,7 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8]) 
     let signed_file_string = std::str::from_utf8(&signed_file_data)?;
     let manifest_file = dir.path().join("META-INF").join("MANIFEST.MF");
     let manifest_file_data = fs::read(manifest_file)?;
-    {
+    if verify_index {
         let signed_file_regex = Regex::new(r"\r\nSHA1-Digest-Manifest: (.*)\r\n").unwrap();
         let signed_file_manifest_sha1sum = base64::decode(match signed_file_regex.captures(signed_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
@@ -390,7 +395,7 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8]) 
     let manifest_file_string = std::str::from_utf8(&manifest_file_data)?;
     let index_file = dir.path().join("index-v1.json");
     let index_file_data = fs::read(index_file)?;
-    {
+    if verify_index {
         let manifest_file_regex = Regex::new(r"\r\nName: index-v1\.json\r\nSHA1-Digest: (.*)\r\n").unwrap();
         let manifest_file_index_sha1sum = base64::decode(match manifest_file_regex.captures(manifest_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
