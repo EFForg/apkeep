@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{hash_map::DefaultHasher, HashSet, HashMap};
 use std::error::Error;
 use std::fs::{self, File};
+use std::hash::{Hash, Hasher};
 use std::io;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
@@ -23,13 +24,33 @@ use crate::consts;
 mod error;
 use error::Error as FDroidError;
 
-async fn retrieve_index_or_exit() -> Value {
+async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
     let temp_dir = match tempdir() {
         Ok(temp_dir) => temp_dir,
         Err(_) => {
             println!("Could not create temporary directory for F-Droid package index. Exiting.");
             std::process::exit(1);
         }
+    };
+    let mut custom_repo = false;
+    let (repo, fingerprint) = match options.get("repo") {
+        Some(repo) => {
+            custom_repo = true;
+            if let Some((repo, fingerprint)) = repo.split_once("?fingerprint=") {
+                let fingerprint = match hex::decode(fingerprint) {
+                    Ok(hex_fingerprint) => hex_fingerprint,
+                    Err(_) => {
+                        println!("Fingerprint must be specified as valid hex. Exiting.");
+                        std::process::exit(1);
+                    }
+                };
+                (repo.to_string(), fingerprint)
+            } else {
+                println!("F-Droid repository must be specified with a fingerprint URL parameter. Exiting.");
+                std::process::exit(1);
+            }
+        },
+        None => (consts::FDROID_REPO.to_string(), Vec::from(consts::FDROID_INDEX_FINGERPRINT))
     };
     let config_dir = match dirs::config_dir() {
         Some(mut config_dir) => {
@@ -42,6 +63,14 @@ async fn retrieve_index_or_exit() -> Value {
             create_dir(&config_dir);
             config_dir.push("apkeep");
             create_dir(&config_dir);
+            if custom_repo {
+                config_dir.push("fdroid-custom-repos");
+                create_dir(&config_dir);
+                let mut s = DefaultHasher::new();
+                repo.hash(&mut s);
+                config_dir.push(format!("{}", s.finish()));
+                create_dir(&config_dir);
+            }
             config_dir
         },
         None => {
@@ -64,8 +93,9 @@ async fn retrieve_index_or_exit() -> Value {
     };
 
     let http_client = reqwest::Client::new();
+    let fdroid_index_url = format!("{}/index-v1.jar", repo);
     let index_response = http_client
-        .head(consts::FDROID_INDEX_URL)
+        .head(fdroid_index_url)
         .send().await.unwrap();
 
     let etag = if index_response.headers().contains_key("ETag") {
@@ -86,8 +116,8 @@ async fn retrieve_index_or_exit() -> Value {
         };
         serde_json::from_str(&index).unwrap()
     } else {
-        let files = download_and_extract_index_to_tempdir(&temp_dir).await;
-        match verify_and_return_index(&temp_dir, &files) {
+        let files = download_and_extract_index_to_tempdir(&temp_dir, &repo).await;
+        match verify_and_return_index(&temp_dir, &files, &fingerprint) {
             Ok(index) => {
                 match serde_json::from_str(&index) {
                     Ok(index_value) => {
@@ -120,8 +150,9 @@ pub async fn download_apps(
     parallel: usize,
     sleep_duration: u64,
     outpath: &Path,
+    options: HashMap<&str, &str>,
 ) {
-    let index = retrieve_index_or_exit().await;
+    let index = retrieve_index_or_exit(&options).await;
 
     let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps) {
         Ok((fdroid_apps, repo_address)) => (fdroid_apps, repo_address),
@@ -258,8 +289,8 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
     Ok((fdroid_apps, repo_address.to_string()))
 }
 
-pub async fn list_versions(apps: Vec<(String, Option<String>)>) {
-    let index = retrieve_index_or_exit().await;
+pub async fn list_versions(apps: Vec<(String, Option<String>)>, options: HashMap<&str, &str>) {
+    let index = retrieve_index_or_exit(&options).await;
     if parse_json_display_versions(index, apps).is_err() {
         println!("Could not parse JSON of F-Droid package index. Exiting.");
     };
@@ -303,7 +334,7 @@ fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>
     Ok(())
 }
 
-fn verify_and_return_index(dir: &TempDir, files: &[String]) -> Result<String, Box<dyn Error>> {
+fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8]) -> Result<String, Box<dyn Error>> {
     println!("Verifying...");
     let re = Regex::new(consts::FDROID_SIGNATURE_BLOCK_FILE_REGEX).unwrap();
     let cert_file = {
@@ -333,8 +364,8 @@ fn verify_and_return_index(dir: &TempDir, files: &[String]) -> Result<String, Bo
         let (cert, signer_info) = get_certificate_and_signer_info_from_signature_block_file(cert_file)?;
         cert.verify_signed_data(signed_file_data.clone(), signer_info.signature())?;
         let x509 = X509::from_der(&cert.encode_ber()?)?;
-        let fingerprint = x509.digest(MessageDigest::from_name("sha256").unwrap())?;
-        if fingerprint.as_ref() != consts::FDROID_INDEX_FINGERPRINT {
+        let cert_fingerprint = x509.digest(MessageDigest::from_name("sha256").unwrap())?;
+        if cert_fingerprint.as_ref() != fingerprint {
             return Err(Box::new(SimpleError::new("Fingerprint of the key contained in the F-Droid repository index does not match the expected fingerprint.")))
         };
     }
@@ -400,14 +431,17 @@ fn get_certificate_and_signer_info_from_signature_block_file(signature_block_fil
             }
             Ok((certificates[0].clone(), signatories[0].clone()))
         },
-        Err(err) => Err(Box::new(err)),
+        Err(err) => {
+            Err(Box::new(err))
+        }
     }
 }
 
-async fn download_and_extract_index_to_tempdir(dir: &TempDir) -> Vec<String> {
+async fn download_and_extract_index_to_tempdir(dir: &TempDir, repo: &str) -> Vec<String> {
     println!("Downloading F-Droid package repository...");
     let mut files = vec![];
-    match tokio_dl_stream_to_disk::download(consts::FDROID_INDEX_URL, dir.path(), "index.zip").await {
+    let fdroid_index_url = format!("{}/index-v1.jar", repo);
+    match tokio_dl_stream_to_disk::download(fdroid_index_url, dir.path(), "index.zip".to_string()).await {
         Ok(_) => {
             println!("Package repository downloaded successfully!\nExtracting...");
             let file = fs::File::open(dir.path().join("index.zip")).unwrap();

@@ -222,7 +222,7 @@ async fn main() {
                 google_play::list_versions(list);
             }
             DownloadSource::FDroid => {
-                fdroid::list_versions(list).await;
+                fdroid::list_versions(list, options).await;
             }
         }
     } else {
@@ -258,7 +258,12 @@ async fn main() {
                 .await;
             }
             DownloadSource::FDroid => {
-                fdroid::download_apps(list, parallel, sleep_duration, &outpath).await;
+                fdroid::download_apps(list,
+                    parallel,
+                    sleep_duration,
+                    &outpath,
+                    options,
+                ).await;
             }
         }
     }
