@@ -37,7 +37,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-dl-stream-to-disk",
- "x509-certificate",
+ "x509-certificate 0.7.0",
  "zip",
 ]
 
@@ -253,9 +253,9 @@ dependencies = [
 
 [[package]]
 name = "cryptographic-message-syntax"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfa1e62084140682dacceaab6f9fabf7115730a540216d639091e62a948f13f1"
+checksum = "6dde5c130700462c1ae5cb1dce01ecd59a4619e7967dc03ba110202f9f1ef080"
 dependencies = [
  "bcder",
  "bytes",
@@ -264,7 +264,7 @@ dependencies = [
  "pem",
  "reqwest",
  "ring",
- "x509-certificate",
+ "x509-certificate 0.8.0",
 ]
 
 [[package]]
@@ -1779,6 +1779,21 @@ name = "x509-certificate"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e35a89cc53f102749f3b220dc22a62a355a2273ae47d08ee66bfc6e049e840f"
+dependencies = [
+ "bcder",
+ "bytes",
+ "chrono",
+ "hex",
+ "pem",
+ "ring",
+ "thiserror",
+]
+
+[[package]]
+name = "x509-certificate"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb459ff4bcde6507cb7962b7b15bb467368bc243f87f4397fbab8e2bc1b38f35"
 dependencies = [
  "bcder",
  "bytes",
