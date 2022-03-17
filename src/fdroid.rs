@@ -360,12 +360,16 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
         signed_file
     };
 
-    let signed_file_data = fs::read(signed_file)?;
+    let signed_content = fs::read(signed_file)?;
 
     if verify_index {
         println!("Verifying...");
-        let (cert, signer_info) = get_certificate_and_signer_info_from_signature_block_file(cert_file)?;
-        cert.verify_signed_data(signed_file_data.clone(), signer_info.signature())?;
+        let signed_data = get_signed_data_from_cert_file(cert_file)?;
+        let signer_info = signed_data.signers().next().unwrap();
+        signer_info.verify_signature_with_signed_data_and_content(
+            &signed_data,
+            &signed_content)?;
+        let cert = signed_data.certificates().next().unwrap();
         let x509 = X509::from_der(&cert.encode_ber()?)?;
         let cert_fingerprint = x509.digest(MessageDigest::from_name("sha256").unwrap())?;
         if cert_fingerprint.as_ref() != fingerprint {
@@ -373,7 +377,7 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
         };
     }
 
-    let signed_file_string = std::str::from_utf8(&signed_file_data)?;
+    let signed_file_string = std::str::from_utf8(&signed_content)?;
     let manifest_file = dir.path().join("META-INF").join("MANIFEST.MF");
     let manifest_file_data = fs::read(manifest_file)?;
     if verify_index {
@@ -414,7 +418,7 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
     Ok(String::from(std::str::from_utf8(&index_file_data)?))
 }
 
-fn get_certificate_and_signer_info_from_signature_block_file(signature_block_file: PathBuf) -> Result<(CapturedX509Certificate, SignerInfo), Box<dyn Error>> {
+fn get_signed_data_from_cert_file(signature_block_file: PathBuf) -> Result<SignedData, Box<dyn Error>> {
     let bytes = fs::read(signature_block_file).unwrap();
     match SignedData::parse_ber(&bytes) {
         Ok(signed_data) => {
@@ -432,7 +436,7 @@ fn get_certificate_and_signer_info_from_signature_block_file(signature_block_fil
             if signatories.is_empty() {
                 return Err(Box::new(SimpleError::new("No signatories provided.")));
             }
-            Ok((certificates[0].clone(), signatories[0].clone()))
+            Ok(signed_data)
         },
         Err(err) => {
             Err(Box::new(err))
