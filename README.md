@@ -50,11 +50,17 @@ download directly from the google play store:
 apkeep -a com.instagram.android -d google-play -u 'someone@gmail.com' -p somepass .
 ```
 
+For more google play usage examples, such as specifying a device configuration, timezone or
+locale, refer to the [`USAGE-google-play.md`](USAGE-google-play.md) document.
+
 Or, to download from the F-Droid open source repository:
 
 ```shell
 apkeep -a org.mozilla.fennec_fdroid -d f-droid .
 ```
+
+For more F-Droid usage examples, such as downloading from F-Droid mirrors or other F-Droid
+repositories, refer to the [`USAGE-fdroid.md`](USAGE-fdroid.md) document.
 
 To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
 convention:
