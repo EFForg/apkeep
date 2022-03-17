@@ -5,8 +5,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.10.0] - 2022-03-17
 ### Added
 - `options` command-line option to specify options specific to a download source
+- With `options`, adding ability to download from a specific F-Droid repo or mirror
+- With `options`, adding ability to specify a device configuration and additional options for Google Play
+- Documenting `options`
 
 ## [0.9.0] - 2022-02-22
 - Fix bug where another package is fetched for certain ids in APKPure
