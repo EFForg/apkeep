@@ -49,7 +49,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-dl-stream-to-disk",
- "x509-certificate",
+ "x509-certificate 0.12.0",
  "zip",
 ]
 
@@ -300,7 +300,7 @@ dependencies = [
  "pem",
  "reqwest",
  "ring",
- "x509-certificate",
+ "x509-certificate 0.11.0",
 ]
 
 [[package]]
@@ -1926,6 +1926,21 @@ name = "x509-certificate"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fe57f5b1eb1747fc1797f1b99fa2127c416d924bb4353008a9f30515e4de482"
+dependencies = [
+ "bcder",
+ "bytes",
+ "chrono",
+ "hex",
+ "pem",
+ "ring",
+ "thiserror",
+]
+
+[[package]]
+name = "x509-certificate"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecce82ba1a532273edf6cd88d1efca9b3417fd24abe81baf143657909f7c12a8"
 dependencies = [
  "bcder",
  "bytes",
