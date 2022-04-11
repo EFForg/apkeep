@@ -299,9 +299,9 @@ dependencies = [
 
 [[package]]
 name = "cryptographic-message-syntax"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01e307f5291eefb5f33e22fed6511669f02e7cec9ceb91f355310676578fd8a6"
+checksum = "4f657fe8a1020db95ba6d23d662d33e52dad5187641aae4b4dde057519249411"
 dependencies = [
  "bcder",
  "bytes",
