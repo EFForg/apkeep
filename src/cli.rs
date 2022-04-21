@@ -7,6 +7,7 @@ pub enum DownloadSource {
     APKPure,
     GooglePlay,
     FDroid,
+    HuaweiAppGallery,
 }
 
 impl DownloadSource {

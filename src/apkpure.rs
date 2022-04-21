@@ -69,7 +69,7 @@ pub async fn download_apps(
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-pub async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &Path) {
+async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &Path) {
     let fname = format!("{}.apk", app_string);
     match response.status() {
         reqwest::StatusCode::OK => {

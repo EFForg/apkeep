@@ -18,7 +18,7 @@ OPTIONS:
 
     -d, --download-source <download_source>
             Where to download the APKs from [default: apk-pure] [possible values: apk-pure, google-
-            play, f-droid]
+            play, f-droid, huawei-app-gallery]
 
     -f, --field <field>
             CSV field containing app IDs (used only if CSV is specified) [default: 1]

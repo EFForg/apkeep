@@ -45,7 +45,7 @@
 //! For more google play usage examples, such as specifying a device configuration, timezone or
 //! locale, refer to the [`USAGE-google-play.md`](USAGE-google-play.md) document.
 //!
-//! Or, to download from the F-Droid open source repository:
+//! To download from the F-Droid open source repository:
 //!
 //! ```shell
 //! apkeep -a org.mozilla.fennec_fdroid -d f-droid .
@@ -53,6 +53,12 @@
 //!
 //! For more F-Droid usage examples, such as downloading from F-Droid mirrors or other F-Droid
 //! repositories, refer to the [`USAGE-fdroid.md`](USAGE-fdroid.md) document.
+//!
+//! Or, to download from the Huawei AppGallery:
+//!
+//! ```shell
+//! apkeep -a com.elysiumlabs.newsbytes -d huawei-app-gallery .
+//! ```
 //!
 //! To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
 //! convention:
@@ -94,6 +100,7 @@
 //! * F-Droid (`-d f-droid`), a repository for free and open-source Android apps. `apkeep`
 //! verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
 //! was downloaded but could not be verified
+//! * The Huawei AppGallery (`-d huawei-app-gallery`), an app store popular in China
 //!
 //! # Usage Note
 //!
@@ -122,6 +129,7 @@ mod consts;
 mod apkpure;
 mod fdroid;
 mod google_play;
+mod huawei_app_gallery;
 
 type CSVList = Vec<(String, Option<String>)>;
 fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Result<CSVList, Box<dyn Error>> {
@@ -230,6 +238,9 @@ async fn main() {
             DownloadSource::FDroid => {
                 fdroid::list_versions(list, options).await;
             }
+            DownloadSource::HuaweiAppGallery => {
+                huawei_app_gallery::list_versions(list).await;
+            }
         }
     } else {
         let parallel: usize = matches.value_of_t("parallel").unwrap();
@@ -274,6 +285,9 @@ async fn main() {
                     &outpath,
                     options,
                 ).await;
+            }
+            DownloadSource::HuaweiAppGallery => {
+                huawei_app_gallery::download_apps(list, parallel, sleep_duration, &outpath).await;
             }
         }
     }
