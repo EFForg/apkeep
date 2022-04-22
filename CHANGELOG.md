@@ -6,6 +6,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.11.0] - 2022-04-22
+- Adding `huawei-app-gallery` as a download source
+
 ## [0.10.0] - 2022-03-17
 ### Added
 - `options` command-line option to specify options specific to a download source
