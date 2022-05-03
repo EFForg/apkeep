@@ -43,6 +43,7 @@ dependencies = [
  "openssl",
  "regex",
  "reqwest",
+ "rpassword",
  "serde_json",
  "sha-1",
  "simple-error",
@@ -1240,6 +1241,18 @@ dependencies = [
  "spin",
  "untrusted",
  "web-sys",
+ "winapi",
+]
+
+[[package]]
+name = "rpassword"
+version = "6.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf099a1888612545b683d2661a1940089f6c2e5a8e38979b2159da876bfd956"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
  "winapi",
 ]
 

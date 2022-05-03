@@ -119,6 +119,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
+use std::io::{self, Write};
 use std::path::Path;
 
 mod cli;
@@ -265,14 +266,28 @@ async fn main() {
                 apkpure::download_apps(list, parallel, sleep_duration, &outpath).await;
             }
             DownloadSource::GooglePlay => {
-                let username = matches.value_of("google_username").unwrap();
-                let password = matches.value_of("google_password").unwrap();
+                let username = match matches.value_of("google_username") {
+                    Some(username) => String::from(username),
+                    None => {
+                        let mut username = String::new();
+                        print!("Username: ");
+                        io::stdout().flush().unwrap();
+                        io::stdin().read_line(&mut username).unwrap();
+                        username
+                    }
+                };
+                let password = match matches.value_of("google_password") {
+                    Some(password) => String::from(password),
+                    None => {
+                        rpassword::prompt_password("Password: ").unwrap()
+                    }
+                };
                 google_play::download_apps(
                     list,
                     parallel,
                     sleep_duration,
-                    username,
-                    password,
+                    &username,
+                    &password,
                     &outpath,
                     options,
                 )
