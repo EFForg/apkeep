@@ -125,8 +125,8 @@ use std::path::Path;
 mod cli;
 use cli::DownloadSource;
 
+mod config;
 mod consts;
-mod util;
 
 mod apkpure;
 mod fdroid;

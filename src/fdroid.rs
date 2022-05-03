@@ -21,7 +21,7 @@ use tokio_dl_stream_to_disk::error::ErrorKind as TDSTDErrorKind;
 use x509_certificate::certificate::CapturedX509Certificate;
 
 use crate::consts;
-use crate::util::{self, ConfigDirError};
+use crate::config::{self, ConfigDirError};
 mod error;
 use error::Error as FDroidError;
 
@@ -63,14 +63,14 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
         }
         std::process::exit(1);
     };
-    let mut config_dir = util::config_dir().map_err(display_error_and_exit).unwrap();
+    let mut config_dir = config::config_dir().map_err(display_error_and_exit).unwrap();
     if custom_repo {
         config_dir.push("fdroid-custom-repos");
-        util::create_dir(&config_dir).map_err(display_error_and_exit).unwrap();
+        config::create_dir(&config_dir).map_err(display_error_and_exit).unwrap();
         let mut s = DefaultHasher::new();
         repo.hash(&mut s);
         config_dir.push(format!("{}", s.finish()));
-        util::create_dir(&config_dir).map_err(display_error_and_exit).unwrap();
+        config::create_dir(&config_dir).map_err(display_error_and_exit).unwrap();
     }
 
     let mut latest_etag_file = PathBuf::from(&config_dir);
