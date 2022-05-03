@@ -21,6 +21,7 @@ use tokio_dl_stream_to_disk::error::ErrorKind as TDSTDErrorKind;
 use x509_certificate::certificate::CapturedX509Certificate;
 
 use crate::consts;
+use crate::util::{self, ConfigDirError};
 mod error;
 use error::Error as FDroidError;
 
@@ -50,32 +51,28 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
             repo = full_repo_option.to_string();
         }
     }
-    let config_dir = match dirs::config_dir() {
-        Some(mut config_dir) => {
-            let create_dir = |config_dir: &PathBuf| {
-                if !config_dir.is_dir() &&  fs::create_dir(config_dir).is_err() {
-                    println!("Could not create a config directory for apkeep to store F-Droid package index. Exiting.");
-                    std::process::exit(1);
-                }
-            };
-            create_dir(&config_dir);
-            config_dir.push("apkeep");
-            create_dir(&config_dir);
-            if custom_repo {
-                config_dir.push("fdroid-custom-repos");
-                create_dir(&config_dir);
-                let mut s = DefaultHasher::new();
-                repo.hash(&mut s);
-                config_dir.push(format!("{}", s.finish()));
-                create_dir(&config_dir);
-            }
-            config_dir
-        },
-        None => {
-            println!("Could not find a config directory for apkeep to store F-Droid package index. Exiting.");
-            std::process::exit(1);
-        },
+
+    let display_error_and_exit = |err: ConfigDirError| {
+        match err {
+            ConfigDirError::NotFound => {
+                println!("Could not find a config directory for apkeep to store F-Droid package index. Exiting.");
+            },
+            ConfigDirError::CouldNotCreate => {
+                println!("Could not create a config directory for apkeep to store F-Droid package index. Exiting.");
+            },
+        }
+        std::process::exit(1);
     };
+    let mut config_dir = util::config_dir().map_err(display_error_and_exit).unwrap();
+    if custom_repo {
+        config_dir.push("fdroid-custom-repos");
+        util::create_dir(&config_dir).map_err(display_error_and_exit).unwrap();
+        let mut s = DefaultHasher::new();
+        repo.hash(&mut s);
+        config_dir.push(format!("{}", s.finish()));
+        util::create_dir(&config_dir).map_err(display_error_and_exit).unwrap();
+    }
+
     let mut latest_etag_file = PathBuf::from(&config_dir);
     latest_etag_file.push("latest_etag");
     let latest_etag = match File::open(&latest_etag_file) {

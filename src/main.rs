@@ -126,6 +126,7 @@ mod cli;
 use cli::DownloadSource;
 
 mod consts;
+mod util;
 
 mod apkpure;
 mod fdroid;
