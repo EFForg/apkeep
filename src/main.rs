@@ -170,6 +170,17 @@ fn parse_csv_text(text: String, field: usize, version_field: Option<usize>) -> V
         .collect()
 }
 
+fn load_config() -> Result<Ini, Box<dyn Error>> {
+    let mut conf = Ini::new();
+    let mut config_path = config::config_dir()?;
+    config_path.push("apkeep.ini");
+    let mut config_fp = File::open(&config_path)?;
+    let mut contents = String::new();
+    config_fp.read_to_string(&mut contents)?;
+    conf.read(contents)?;
+    Ok(conf)
+}
+
 #[tokio::main]
 async fn main() {
     let usage = {
@@ -269,54 +280,38 @@ async fn main() {
                 apkpure::download_apps(list, parallel, sleep_duration, &outpath).await;
             }
             DownloadSource::GooglePlay => {
-                let mut config_username = None;
-                let mut config_password = None;
-                let mut conf = Ini::new();
-                let config_path = config::config_dir();
-                if let Ok(mut config_path) = config_path {
-                    config_path.push("apkeep.ini");
-                    let config_fp = File::open(&config_path);
-                    if config_fp.is_ok() {
-                        let mut contents = String::new();
-                        if config_fp.unwrap().read_to_string(&mut contents).is_ok() {
-                            if conf.read(contents).is_ok() {
-                                config_username = conf.get("google", "username");
-                                config_password = conf.get("google", "password");
-                            }
+                let mut username = matches.value_of("google_username").map(|v| v.to_string());
+                let mut password = matches.value_of("google_password").map(|v| v.to_string());
+                
+                if username.is_none() || password.is_none() {
+                    if let Ok(conf) = load_config() {
+                        if username.is_none() {
+                            username = conf.get("google", "username");
+                        }
+                        if password.is_none() {
+                            password = conf.get("google", "password");
                         }
                     }
                 }
+                
+                if username.is_none() {
+                    let mut prompt_username = String::new();
+                    print!("Username: ");
+                    io::stdout().flush().unwrap();
+                    io::stdin().read_line(&mut prompt_username).unwrap();
+                    username = Some(prompt_username);
+                }
 
-                let username = match matches.value_of("google_username") {
-                    Some(username) => String::from(username),
-                    None => {
-                        if config_username.is_some() {
-                            String::from(config_username.unwrap())
-                        } else {
-                            let mut username = String::new();
-                            print!("Username: ");
-                            io::stdout().flush().unwrap();
-                            io::stdin().read_line(&mut username).unwrap();
-                            username
-                        }
-                    }
-                };
-                let password = match matches.value_of("google_password") {
-                    Some(password) => String::from(password),
-                    None => {
-                        if config_password.is_some() {
-                            String::from(config_password.unwrap())
-                        } else {
-                            rpassword::prompt_password("Password: ").unwrap()
-                        }
-                    }
-                };
+                if password.is_none() {
+                    password = Some(rpassword::prompt_password("Password: ").unwrap());
+                }
+
                 google_play::download_apps(
                     list,
                     parallel,
                     sleep_duration,
-                    &username,
-                    &password,
+                    &username.unwrap(),
+                    &password.unwrap(),
                     &outpath,
                     options,
                 )
