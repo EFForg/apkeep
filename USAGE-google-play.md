@@ -17,3 +17,11 @@ Likewise, a separate timezone or locale can also be specified:
 ```shell
 apkeep -a com.instagram.android -d google-play -o device=cloudbook,locale=es_MX -u 'someone@gmail.com' -p somepass .
 ```
+
+If you prefer not to provide your credentials on the command line, you can specify them in a config file named `apkeep.ini`.  This config file may have to be created, and must be located in the system config directory under the subpath `apkeep`.  Usually on Linux systems this will be `~/.config/apkeep/apkeep.ini`.  In this file specify your username and/or usesrname:
+
+```ini
+[google]
+username = someone@gmail.com
+password = somepass
+```

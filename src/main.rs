@@ -118,9 +118,11 @@
 
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs;
-use std::io::{self, Write};
+use std::fs::{self, File};
+use std::io::{self, Write, Read};
 use std::path::Path;
+
+use configparser::ini::Ini;
 
 mod cli;
 use cli::DownloadSource;
@@ -267,20 +269,46 @@ async fn main() {
                 apkpure::download_apps(list, parallel, sleep_duration, &outpath).await;
             }
             DownloadSource::GooglePlay => {
+                let mut config_username = None;
+                let mut config_password = None;
+                let mut conf = Ini::new();
+                let config_path = config::config_dir();
+                if let Ok(mut config_path) = config_path {
+                    config_path.push("apkeep.ini");
+                    let config_fp = File::open(&config_path);
+                    if config_fp.is_ok() {
+                        let mut contents = String::new();
+                        if config_fp.unwrap().read_to_string(&mut contents).is_ok() {
+                            if conf.read(contents).is_ok() {
+                                config_username = conf.get("google", "username");
+                                config_password = conf.get("google", "password");
+                            }
+                        }
+                    }
+                }
+
                 let username = match matches.value_of("google_username") {
                     Some(username) => String::from(username),
                     None => {
-                        let mut username = String::new();
-                        print!("Username: ");
-                        io::stdout().flush().unwrap();
-                        io::stdin().read_line(&mut username).unwrap();
-                        username
+                        if config_username.is_some() {
+                            String::from(config_username.unwrap())
+                        } else {
+                            let mut username = String::new();
+                            print!("Username: ");
+                            io::stdout().flush().unwrap();
+                            io::stdin().read_line(&mut username).unwrap();
+                            username
+                        }
                     }
                 };
                 let password = match matches.value_of("google_password") {
                     Some(password) => String::from(password),
                     None => {
-                        rpassword::prompt_password("Password: ").unwrap()
+                        if config_password.is_some() {
+                            String::from(config_password.unwrap())
+                        } else {
+                            rpassword::prompt_password("Password: ").unwrap()
+                        }
                     }
                 };
                 google_play::download_apps(

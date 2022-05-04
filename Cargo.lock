@@ -35,6 +35,7 @@ version = "0.11.0"
 dependencies = [
  "base64",
  "clap",
+ "configparser",
  "cryptographic-message-syntax",
  "dirs",
  "futures-util",
@@ -44,6 +45,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rpassword",
+ "serde",
  "serde_json",
  "sha-1",
  "simple-error",
