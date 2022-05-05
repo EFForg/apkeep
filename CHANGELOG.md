@@ -4,7 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.12.0] - 2022-05-05
+- Add a default config file which allows users to store Google credentials
+- Allow specifying a custom path to the above config file
+- Prompt users for a Google username and password if none is found
 
 ## [0.11.0] - 2022-04-22
 - Adding `huawei-app-gallery` as a download source
