@@ -104,6 +104,14 @@ pub fn app() -> Command<'static> {
                 .required(false),
         )
         .arg(
+            Arg::new("ini")
+                .help("The path to an ini file which contains configuration data")
+                .short('i')
+                .long("ini")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
             Arg::new("google_username")
                 .help("Google Username (required if download source is Google Play)")
                 .short('u')

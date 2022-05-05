@@ -26,6 +26,9 @@ OPTIONS:
     -h, --help
             Print help information
 
+    -i, --ini <ini>
+            The path to an ini file which contains configuration data
+
     -l, --list-versions
             List the versions available
 

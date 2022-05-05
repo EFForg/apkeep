@@ -25,3 +25,9 @@ If you prefer not to provide your credentials on the command line, you can speci
 username = someone@gmail.com
 password = somepass
 ```
+
+Optionally, the path to this `ini` file can be specified:
+
+```shell
+apkeep -a com.instagram.android -d google-play -i ~/path/to/some.ini .
+```

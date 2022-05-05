@@ -120,7 +120,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::{self, Write, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use configparser::ini::Ini;
 
@@ -170,10 +170,16 @@ fn parse_csv_text(text: String, field: usize, version_field: Option<usize>) -> V
         .collect()
 }
 
-fn load_config() -> Result<Ini, Box<dyn Error>> {
+fn load_config(ini_file: Option<PathBuf>) -> Result<Ini, Box<dyn Error>> {
     let mut conf = Ini::new();
-    let mut config_path = config::config_dir()?;
-    config_path.push("apkeep.ini");
+    let config_path = match ini_file {
+        Some(ini_file) => ini_file,
+        None => {
+            let mut config_path = config::config_dir()?;
+            config_path.push("apkeep.ini");
+            config_path
+        }
+    };
     let mut config_fp = File::open(&config_path)?;
     let mut contents = String::new();
     config_fp.read_to_string(&mut contents)?;
@@ -282,9 +288,21 @@ async fn main() {
             DownloadSource::GooglePlay => {
                 let mut username = matches.value_of("google_username").map(|v| v.to_string());
                 let mut password = matches.value_of("google_password").map(|v| v.to_string());
-                
+
+                let ini_file = matches.value_of("ini").map(|ini_file| {
+                    match fs::canonicalize(ini_file) {
+                        Ok(ini_file) if Path::new(&ini_file).is_file() => {
+                            ini_file
+                        },
+                        _ => {
+                            println!("{}\n\nSpecified ini is not a valid file", usage);
+                            std::process::exit(1);
+                        },
+                    }
+                });
+
                 if username.is_none() || password.is_none() {
-                    if let Ok(conf) = load_config() {
+                    if let Ok(conf) = load_config(ini_file) {
                         if username.is_none() {
                             username = conf.get("google", "username");
                         }
