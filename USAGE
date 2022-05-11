@@ -1,4 +1,4 @@
-apkeep v0.12.0 
+apkeep v0.12.1 
 William Budington <bill@eff.org>
 Downloads APKs from various sources
 
@@ -17,8 +17,8 @@ OPTIONS:
             CSV file to use
 
     -d, --download-source <download_source>
-            Where to download the APKs from [default: apk-pure] [possible values: apk-pure, google-
-            play, f-droid, huawei-app-gallery]
+            Where to download the APKs from [default: apk-pure] [possible values: apk-pure,
+            google-play, f-droid, huawei-app-gallery]
 
     -f, --field <field>
             CSV field containing app IDs (used only if CSV is specified) [default: 1]

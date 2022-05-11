@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] - 2022-05-11
+- Android-only release: fix dependencies to ensure `openssl-1.1` is used
+
 ## [0.12.0] - 2022-05-05
 - Add a default config file which allows users to store Google credentials
 - Allow specifying a custom path to the above config file
