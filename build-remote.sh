@@ -29,15 +29,15 @@ export PKG_CONFIG_PATH="/usr/lib/aarch-linux-gnu-gcc/pkgconfig"
 cargo build --release --target=aarch64-unknown-linux-gnu
 
 cd ~
-wget https://www.openssl.org/source/openssl-1.1.1k.tar.gz
-tar -zxvf openssl-1.1.1k.tar.gz
-cd openssl-1.1.1k
+wget https://www.openssl.org/source/openssl-1.1.1o.tar.gz
+tar -zxvf openssl-1.1.1o.tar.gz
+cd openssl-1.1.1o
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
 cd ~
 wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
-# later versions are available, but have to use an earlier version for compatability with openssl-1.1.1k
+# later versions are available, but lack the necessary *-linux-android-ar binaries
 unzip android-ndk-r21e-linux-x86_64.zip
 cd android-ndk-r21e
 export ANDROID_NDK_HOME="$PWD"
