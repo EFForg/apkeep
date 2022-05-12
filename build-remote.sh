@@ -29,9 +29,9 @@ export PKG_CONFIG_PATH="/usr/lib/aarch-linux-gnu-gcc/pkgconfig"
 cargo build --release --target=aarch64-unknown-linux-gnu
 
 cd ~
-wget https://www.openssl.org/source/openssl-1.1.1o.tar.gz
-tar -zxvf openssl-1.1.1o.tar.gz
-cd openssl-1.1.1o
+wget https://www.openssl.org/source/openssl-3.0.3.tar.gz
+tar -zxvf openssl-3.0.3.tar.gz
+cd openssl-3.0.3
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
@@ -40,7 +40,7 @@ wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
 # later versions are available, but lack the necessary *-linux-android-ar binaries
 unzip android-ndk-r21e-linux-x86_64.zip
 cd android-ndk-r21e
-export ANDROID_NDK_HOME="$PWD"
+export ANDROID_NDK_ROOT="$PWD"
 export PATH="$PATH:$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
 cd $OPENSSL_DIR
@@ -74,17 +74,17 @@ sudo ln -s clang-11 /usr/bin/clang && sudo ln -s clang /usr/bin/clang++ && sudo 
 sudo ln -s clang-11 /usr/bin/clang-cl && sudo ln -s llvm-ar-11 /usr/bin/llvm-lib && sudo ln -s lld-link-11 /usr/bin/lld-link && sudo ln -s lld-link /usr/bin/link.exe
 
 cd ~
-wget https://github.com/EFForg/apkeep-files/raw/main/openssl-1.1.1m-static-x86_64-pc-windows-msvc.tar.gz
-tar -zxvf openssl-1.1.1m-static-x86_64-pc-windows-msvc.tar.gz
-cd openssl-1.1.1m
+wget https://github.com/EFForg/apkeep-files/raw/main/openssl-3.0.3-static-x86_64-pc-windows-msvc.tar.gz
+tar -zxvf openssl-3.0.3-static-x86_64-pc-windows-msvc.tar.gz
+cd openssl-3.0.3
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
-XWIN_VERSION="0.1.5"
+XWIN_VERSION="0.2.1"
 XWIN_PREFIX="xwin-$XWIN_VERSION-x86_64-unknown-linux-musl"
 curl --fail -L https://github.com/Jake-Shadle/xwin/releases/download/$XWIN_VERSION/$XWIN_PREFIX.tar.gz | tar -xzv -C ~/.cargo/bin --strip-components=1 $XWIN_PREFIX/xwin
 cd ~ && mkdir xwin
-xwin --accept-license 1 splat --output xwin
+xwin --accept-license splat --output xwin
 
 export CC_x86_64_pc_windows_msvc="clang-cl"
 export CXX_x86_64_pc_windows_msvc="clang-cl"
