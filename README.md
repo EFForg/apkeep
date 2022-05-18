@@ -24,6 +24,8 @@ Or to install from the latest commit in our repository, run
 cargo install --git https://github.com/EFForg/apkeep.git
 ```
 
+If using on an Android platform, [`termux`](https://termux.org/) must be installed first.  Upgrade to the latest packages with `pkg update`, then install the `apkeep` precompiled binary as described above or run `pkg install apkeep` to install from the `termux` repository.
+
 Docker images are also available through the GitHub Container Registry. Aside from using a
 specific release version, the following floating tags are available:
 
