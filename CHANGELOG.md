@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2] - 2022-05-18
+- Android-only release: switch to OpenSSL 3.0.3 for `termux` releases
+
 ## [0.12.1] - 2022-05-11
 - Android-only release: fix dependencies to ensure `openssl-1.1` is used
 
