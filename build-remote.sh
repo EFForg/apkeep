@@ -32,6 +32,8 @@ cd ~
 wget https://www.openssl.org/source/openssl-3.0.3.tar.gz
 tar -zxvf openssl-3.0.3.tar.gz
 cd openssl-3.0.3
+wget https://raw.githubusercontent.com/EFForg/apkeep-files/main/Configurations-15-android.conf.patch
+patch -u Configurations/15-android.conf Configurations-15-android.conf.patch
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
