@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+- Add ability to install split APKs with `google-play`
+
 ## [0.12.2] - 2022-05-18
 - Android-only release: switch to OpenSSL 3.0.3 for `termux` releases
 
