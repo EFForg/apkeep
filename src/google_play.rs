@@ -23,6 +23,10 @@ pub async fn download_apps(
         Some(val) if val == "1" || val.to_lowercase() == "true" => true,
         _ => false,
     };
+    let include_additional_files = match options.remove("include_additional_files") {
+        Some(val) if val == "1" || val.to_lowercase() == "true" => true,
+        _ => false,
+    };
     let mut gpa = Gpapi::new(locale, timezone, device);
 
     if let Err(err) = gpa.login(username, password).await {
@@ -44,7 +48,7 @@ pub async fn download_apps(
                     if sleep_duration > 0 {
                         sleep(TokioDuration::from_millis(sleep_duration)).await;
                     }
-                    match gpa.download(&app_id, None, split_apk, Path::new(outpath)).await {
+                    match gpa.download(&app_id, None, split_apk, include_additional_files, Path::new(outpath)).await {
                         Ok(_) => println!("{} downloaded successfully!", app_id),
                         Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
                             println!("File already exists for {}. Skipping...", app_id);
@@ -60,11 +64,11 @@ pub async fn download_apps(
                         }
                         Err(_) => {
                             println!("An error has occurred attempting to download {}.  Retry #1...", app_id);
-                            match gpa.download(&app_id, None, split_apk, Path::new(outpath)).await {
+                            match gpa.download(&app_id, None, split_apk, include_additional_files, Path::new(outpath)).await {
                                 Ok(_) => println!("{} downloaded successfully!", app_id),
                                 Err(_) => {
                                     println!("An error has occurred attempting to download {}.  Retry #2...", app_id);
-                                    match gpa.download(&app_id, None, split_apk, Path::new(outpath)).await {
+                                    match gpa.download(&app_id, None, split_apk, include_additional_files, Path::new(outpath)).await {
                                         Ok(_) => println!("{} downloaded successfully!", app_id),
                                         Err(_) => {
                                             println!("An error has occurred attempting to download {}. Skipping...", app_id);

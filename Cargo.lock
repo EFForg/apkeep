@@ -536,9 +536,9 @@ dependencies = [
 
 [[package]]
 name = "gpapi"
-version = "1.0.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce8df8feafcb494259ab775b4f7bbff353f4834f3bfc59ab1613d040661dd82a"
+checksum = "20262e3cd35cb2b2303c724e73c9d7734c330b1aa6301af22dc68e246a34c91f"
 dependencies = [
  "base64",
  "bincode",
