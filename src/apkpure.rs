@@ -70,13 +70,17 @@ pub async fn download_apps(
 }
 
 async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &Path) {
-    let fname = format!("{}.apk", app_string);
     match response.status() {
         reqwest::StatusCode::OK => {
             let body = response.text().await.unwrap();
             match re.captures(&body) {
                 Some(caps) if caps.len() >= 2 => {
-                    let download_url = caps.get(1).unwrap().as_str();
+                    let apk_xapk = caps.get(1).unwrap().as_str();
+                    let download_url = caps.get(2).unwrap().as_str();
+                    let fname = match apk_xapk {
+                        "XAPKJ" => format!("{}.xapk", app_string),
+                        _ => format!("{}.apk", app_string),
+                    };
                     match tokio_dl_stream_to_disk::download(download_url, Path::new(outpath), &fname).await {
                         Ok(_) => println!("{} downloaded successfully!", app_string),
                         Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
