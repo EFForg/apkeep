@@ -119,7 +119,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::{self, Write, Read};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use configparser::ini::Ini;
@@ -136,11 +136,23 @@ mod google_play;
 mod huawei_app_gallery;
 
 type CSVList = Vec<(String, Option<String>)>;
-fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Result<CSVList, Box<dyn Error>> {
-    Ok(parse_csv_text(fs::read_to_string(csv)?, field, version_field))
+fn fetch_csv_list(
+    csv: &str,
+    field: usize,
+    version_field: Option<usize>,
+) -> Result<CSVList, Box<dyn Error>> {
+    Ok(parse_csv_text(
+        fs::read_to_string(csv)?,
+        field,
+        version_field,
+    ))
 }
 
-fn parse_csv_text(text: String, field: usize, version_field: Option<usize>) -> Vec<(String, Option<String>)> {
+fn parse_csv_text(
+    text: String,
+    field: usize,
+    version_field: Option<usize>,
+) -> Vec<(String, Option<String>)> {
     let field = field - 1;
     let version_field = version_field.map(|version_field| version_field - 1);
     text.split('\n')
@@ -160,7 +172,7 @@ fn parse_csv_text(text: String, field: usize, version_field: Option<usize>) -> V
                         } else {
                             Some((app_id, None))
                         }
-                    },
+                    }
                     _ => Some((String::from(entry_vec.remove(field)), None)),
                 }
             } else {
@@ -189,9 +201,7 @@ fn load_config(ini_file: Option<PathBuf>) -> Result<Ini, Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() {
-    let usage = {
-        cli::app().render_usage()
-    };
+    let usage = { cli::app().render_usage() };
     let matches = cli::app().get_matches();
 
     let download_source: DownloadSource = matches.value_of_t("download_source").unwrap();
@@ -202,13 +212,13 @@ async fn main() {
                 match option.split_once("=") {
                     Some((key, value)) => {
                         options_map.insert(key, value);
-                    },
+                    }
                     None => {}
                 }
             }
             options_map
-        },
-        None => HashMap::new()
+        }
+        None => HashMap::new(),
     };
     let list = match matches.value_of("app") {
         Some(app) => {
@@ -219,7 +229,7 @@ async fn main() {
                 _ => None,
             };
             vec![(app_id, app_version)]
-        },
+        }
         None => {
             let csv = matches.value_of("csv").unwrap();
             let field: usize = matches.value_of_t("field").unwrap();
@@ -263,18 +273,56 @@ async fn main() {
                 huawei_app_gallery::list_versions(list).await;
             }
         }
+    } else if matches.is_present("show_app_detail") {
+        let mut username = matches.value_of("google_username").map(|v| v.to_string());
+        let mut password = matches.value_of("google_password").map(|v| v.to_string());
+
+        let ini_file = matches
+            .value_of("ini")
+            .map(|ini_file| match fs::canonicalize(ini_file) {
+                Ok(ini_file) if Path::new(&ini_file).is_file() => ini_file,
+                _ => {
+                    println!("{}\n\nSpecified ini is not a valid file", usage);
+                    std::process::exit(1);
+                }
+            });
+
+        if username.is_none() || password.is_none() {
+            if let Ok(conf) = load_config(ini_file) {
+                if username.is_none() {
+                    username = conf.get("google", "username");
+                }
+                if password.is_none() {
+                    password = conf.get("google", "password");
+                }
+            }
+        }
+
+        if username.is_none() {
+            let mut prompt_username = String::new();
+            print!("Username: ");
+            io::stdout().flush().unwrap();
+            io::stdin().read_line(&mut prompt_username).unwrap();
+            username = Some(prompt_username);
+        }
+
+        if password.is_none() {
+            password = Some(rpassword::prompt_password("Password: ").unwrap());
+        }
+        google_play::show_app_detail(list, &username.unwrap(), &password.unwrap(), options).await;
     } else {
         let parallel: usize = matches.value_of_t("parallel").unwrap();
         let sleep_duration: u64 = matches.value_of_t("sleep_duration").unwrap();
         let outpath = matches.value_of("OUTPATH");
         if outpath.is_none() {
-            println!("{}\n\nOUTPATH must be specified when downloading files", usage);
+            println!(
+                "{}\n\nOUTPATH must be specified when downloading files",
+                usage
+            );
             std::process::exit(1);
         }
         let outpath = match fs::canonicalize(outpath.unwrap()) {
-            Ok(outpath) if Path::new(&outpath).is_dir() => {
-                outpath
-            },
+            Ok(outpath) if Path::new(&outpath).is_dir() => outpath,
             _ => {
                 println!("{}\n\nOUTPATH is not a valid directory", usage);
                 std::process::exit(1);
@@ -289,17 +337,16 @@ async fn main() {
                 let mut username = matches.value_of("google_username").map(|v| v.to_string());
                 let mut password = matches.value_of("google_password").map(|v| v.to_string());
 
-                let ini_file = matches.value_of("ini").map(|ini_file| {
-                    match fs::canonicalize(ini_file) {
-                        Ok(ini_file) if Path::new(&ini_file).is_file() => {
-                            ini_file
-                        },
-                        _ => {
-                            println!("{}\n\nSpecified ini is not a valid file", usage);
-                            std::process::exit(1);
-                        },
-                    }
-                });
+                let ini_file =
+                    matches
+                        .value_of("ini")
+                        .map(|ini_file| match fs::canonicalize(ini_file) {
+                            Ok(ini_file) if Path::new(&ini_file).is_file() => ini_file,
+                            _ => {
+                                println!("{}\n\nSpecified ini is not a valid file", usage);
+                                std::process::exit(1);
+                            }
+                        });
 
                 if username.is_none() || password.is_none() {
                     if let Ok(conf) = load_config(ini_file) {
@@ -311,7 +358,7 @@ async fn main() {
                         }
                     }
                 }
-                
+
                 if username.is_none() {
                     let mut prompt_username = String::new();
                     print!("Username: ");
@@ -336,12 +383,7 @@ async fn main() {
                 .await;
             }
             DownloadSource::FDroid => {
-                fdroid::download_apps(list,
-                    parallel,
-                    sleep_duration,
-                    &outpath,
-                    options,
-                ).await;
+                fdroid::download_apps(list, parallel, sleep_duration, &outpath, options).await;
             }
             DownloadSource::HuaweiAppGallery => {
                 huawei_app_gallery::download_apps(list, parallel, sleep_duration, &outpath).await;

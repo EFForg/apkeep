@@ -86,6 +86,34 @@ pub async fn download_apps(
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
+pub async fn show_app_detail(
+    apps: Vec<(String, Option<String>)>,
+    username: &str,
+    password: &str,
+    mut options: HashMap<&str, &str>,
+) {
+    for app in apps {
+        let (app_id, _) = app;
+        let locale = options.remove("locale").unwrap_or("en_US");
+        let timezone = options.remove("timezone").unwrap_or("UTC");
+        let device = options.remove("device").unwrap_or("hero2lte");
+
+        let mut gpa = Gpapi::new(locale, timezone, device);
+
+        if let Err(err) = gpa.login(username, password).await {
+            match err.kind() {
+                GpapiErrorKind::SecurityCheck | GpapiErrorKind::EncryptLogin => println!("{}", err),
+                _ => println!("Could not log in to Google Play.  Please check your credentials and try again later."),
+            }
+            std::process::exit(1);
+        }
+
+        let gpa = Rc::new(gpa);
+        let details = gpa.details(&app_id).await.unwrap().unwrap();
+
+        println!("{}", serde_json::to_string_pretty(&details).unwrap());
+    }
+}
 pub fn list_versions(apps: Vec<(String, Option<String>)>) {
     for app in apps {
         let (app_id, _) = app;
