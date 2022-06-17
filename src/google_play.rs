@@ -114,6 +114,7 @@ pub async fn show_app_detail(
         println!("{}", serde_json::to_string_pretty(&details).unwrap());
     }
 }
+
 pub fn list_versions(apps: Vec<(String, Option<String>)>) {
     for app in apps {
         let (app_id, _) = app;
