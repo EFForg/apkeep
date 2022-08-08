@@ -31,9 +31,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.59"
+version = "1.0.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c91f1f46651137be86f3a2b9a8359f9ab421d04d941c62b5982e1ca21113adf9"
+checksum = "c794e162a5eff65c72ef524dfe393eb923c354e350bb78b9c7383df13f3bc142"
 
 [[package]]
 name = "apkeep"
@@ -93,9 +93,9 @@ checksum = "8a32fd6af2b5827bce66c29053ba0e7c42b9dcab01835835058558c10851a46b"
 
 [[package]]
 name = "bcder"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52e7c3bae57b01ec5b1b028af1f77b7d41dd2bd97a41bab7968739b5329c0e39"
+checksum = "f007d8acfb8ef7d219911c7164c025a6d3504735120fc5df59c3c479ab84ea51"
 dependencies = [
  "bytes",
  "smallvec",
@@ -324,9 +324,9 @@ dependencies = [
 
 [[package]]
 name = "cryptographic-message-syntax"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b13001442078f90b36648351515450e7c12f04982705226cbf3b2e164518fd5"
+checksum = "d13b927ab0248244bb4fc9b65cc1fd1e4de541c0fe5008ecdfa04e2b87b7134d"
 dependencies = [
  "bcder",
  "bytes",
@@ -2072,9 +2072,9 @@ dependencies = [
 
 [[package]]
 name = "x509-certificate"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b186323a55dac6fbbdc0e232d7656aeceb7bafb29eef21e261e7ecc36eeec63"
+checksum = "670fa717535eff7c806dd7b67df2cd5d7670d5f4e71d1ffc5c7f3fa8c66b2546"
 dependencies = [
  "bcder",
  "bytes",
