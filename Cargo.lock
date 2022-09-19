@@ -268,9 +268,9 @@ checksum = "5458d9d1a587efaf5091602c59d299696a3877a439c8f6d461a2d3cce11df87a"
 
 [[package]]
 name = "const-oid"
-version = "0.7.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4c78c047431fee22c1a7bb92e00ad095a02a983affe4d8a72e2a2c62c1b94f3"
+checksum = "722e23542a15cea1f65d4a1419c4cfd7a26706c70871a13a04238ca3f40f1661"
 
 [[package]]
 name = "constant_time_eq"
@@ -334,9 +334,9 @@ dependencies = [
 
 [[package]]
 name = "cryptographic-message-syntax"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d13b927ab0248244bb4fc9b65cc1fd1e4de541c0fe5008ecdfa04e2b87b7134d"
+checksum = "aa9b046329f00c700008db38c64e3b7bed15bab96c3b41e1b700f2ae23ec2c8e"
 dependencies = [
  "bcder",
  "bytes",
@@ -351,9 +351,9 @@ dependencies = [
 
 [[package]]
 name = "der"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6919815d73839e7ad218de758883aae3a257ba6759ce7a9992501efbb53d705c"
+checksum = "13dd2ae565c0a381dde7fade45fce95984c568bdcb4700a4fdbe3175e0380b2f"
 dependencies = [
  "const-oid",
 ]
@@ -1548,9 +1548,9 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spki"
-version = "0.5.4"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44d01ac02a6ccf3e07db148d2be087da624fea0221a16152ed01f0496a6b0a27"
+checksum = "67cf02bbac7a337dc36e4f5a693db6c21e7863f45070f7064577eb4367a3212b"
 dependencies = [
  "base64ct",
  "der",
@@ -2086,9 +2086,9 @@ dependencies = [
 
 [[package]]
 name = "x509-certificate"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670fa717535eff7c806dd7b67df2cd5d7670d5f4e71d1ffc5c7f3fa8c66b2546"
+checksum = "97a22d96cc26820ae985ec042be273c52f1661bcfc26e13a55957faf3a433577"
 dependencies = [
  "bcder",
  "bytes",
