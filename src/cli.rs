@@ -1,23 +1,12 @@
-use clap::{Command, Arg, ArgEnum, PossibleValue};
+use clap::{value_parser, Command, Arg, ArgAction, ValueEnum, {builder::EnumValueParser}};
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
 pub enum DownloadSource {
     APKPure,
     GooglePlay,
     FDroid,
     HuaweiAppGallery,
 }
-
-impl DownloadSource {
-    pub fn possible_values() -> impl Iterator<Item = PossibleValue<'static>> {
-        Self::value_variants()
-            .iter()
-            .filter_map(ArgEnum::to_possible_value)
-    }
-}
-
 
 impl std::fmt::Display for DownloadSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -41,8 +30,9 @@ impl std::str::FromStr for DownloadSource {
     }
 }
 
-pub fn app() -> Command<'static> {
-    Command::new(format!("apkeep v{}", VERSION))
+pub fn app() -> Command {
+    Command::new("apkeep")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("William Budington <bill@eff.org>")
         .about("Downloads APKs from various sources")
         .override_usage("apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH")
@@ -51,7 +41,7 @@ pub fn app() -> Command<'static> {
                 .help("Provide the ID and optionally the version of an app directly (e.g. com.instagram.android)")
                 .short('a')
                 .long("app")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .conflicts_with("csv")
                 .required_unless_present("csv"),
         )
@@ -60,14 +50,15 @@ pub fn app() -> Command<'static> {
                 .help("CSV file to use")
                 .short('c')
                 .long("csv")
-                .takes_value(true),
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new("field")
                 .help("CSV field containing app IDs (used only if CSV is specified)")
                 .short('f')
                 .long("field")
-                .takes_value(true)
+                .action(ArgAction::Set)
+                .value_parser(value_parser!(usize))
                 .default_value("1"),
         )
         .arg(
@@ -75,7 +66,8 @@ pub fn app() -> Command<'static> {
                 .help("CSV field containing versions (used only if CSV is specified)")
                 .short('v')
                 .long("version-field")
-                .takes_value(true)
+                .action(ArgAction::Set)
+                .value_parser(value_parser!(usize))
                 .required(false),
         )
         .arg(
@@ -83,6 +75,7 @@ pub fn app() -> Command<'static> {
                 .help("List the versions available")
                 .short('l')
                 .long("list-versions")
+                .action(ArgAction::SetTrue)
                 .required(false),
         )
         .arg(
@@ -91,8 +84,8 @@ pub fn app() -> Command<'static> {
                 .short('d')
                 .long("download-source")
                 .default_value("apk-pure")
-                .takes_value(true)
-                .possible_values(DownloadSource::possible_values())
+                .action(ArgAction::Set)
+                .value_parser(EnumValueParser::<DownloadSource>::new())
                 .required(false),
         )
         .arg(
@@ -100,7 +93,7 @@ pub fn app() -> Command<'static> {
                 .help("A comma-separated list of additional options to pass to the download source")
                 .short('o')
                 .long("options")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .required(false),
         )
         .arg(
@@ -108,7 +101,7 @@ pub fn app() -> Command<'static> {
                 .help("The path to an ini file which contains configuration data")
                 .short('i')
                 .long("ini")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .required(false),
         )
         .arg(
@@ -116,23 +109,24 @@ pub fn app() -> Command<'static> {
                 .help("Google Username (required if download source is Google Play)")
                 .short('u')
                 .long("username")
-                .takes_value(true)
-                .required_if_eq("download_source", "GooglePlay"),
+                .action(ArgAction::Set)
+                .required_if_eq("download_source", "google-play"),
         )
         .arg(
             Arg::new("google_password")
                 .help("Google App Password (required if download source is Google Play)")
                 .short('p')
                 .long("password")
-                .takes_value(true)
-                .required_if_eq("download_source", "GooglePlay"),
+                .action(ArgAction::Set)
+                .required_if_eq("download_source", "google-play"),
         )
         .arg(
             Arg::new("sleep_duration")
                 .help("Sleep duration (in ms) before download requests")
                 .short('s')
                 .long("sleep-duration")
-                .takes_value(true)
+                .action(ArgAction::Set)
+                .value_parser(value_parser!(u64))
                 .default_value("0"),
         )
         .arg(
@@ -140,13 +134,15 @@ pub fn app() -> Command<'static> {
                 .help("The number of parallel APK fetches to run at a time")
                 .short('r')
                 .long("parallel")
-                .takes_value(true)
+                .action(ArgAction::Set)
+                .value_parser(value_parser!(usize))
                 .default_value("4")
                 .required(false),
         )
         .arg(
             Arg::new("OUTPATH")
                 .help("Path to store output files")
+                .action(ArgAction::Set)
                 .index(1),
         )
 }

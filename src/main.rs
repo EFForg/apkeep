@@ -194,8 +194,8 @@ async fn main() {
     };
     let matches = cli::app().get_matches();
 
-    let download_source: DownloadSource = matches.value_of_t("download_source").unwrap();
-    let options: HashMap<&str, &str> = match matches.value_of("options") {
+    let download_source = *matches.get_one::<DownloadSource>("download_source").unwrap();
+    let options: HashMap<&str, &str> = match matches.get_one::<String>("options") {
         Some(options) => {
             let mut options_map = HashMap::new();
             for option in options.split(",") {
@@ -210,7 +210,7 @@ async fn main() {
         },
         None => HashMap::new()
     };
-    let list = match matches.value_of("app") {
+    let list = match matches.get_one::<String>("app") {
         Some(app) => {
             let mut app_vec: Vec<String> = app.splitn(2, '@').map(String::from).collect();
             let app_id = app_vec.remove(0);
@@ -221,9 +221,9 @@ async fn main() {
             vec![(app_id, app_version)]
         },
         None => {
-            let csv = matches.value_of("csv").unwrap();
-            let field: usize = matches.value_of_t("field").unwrap();
-            let version_field: Option<usize> = matches.value_of_t("version_field").ok();
+            let csv = matches.get_one::<String>("csv").unwrap();
+            let field = *matches.get_one::<usize>("field").unwrap();
+            let version_field = matches.get_one::<usize>("version_field").map(|v| *v);
             if field < 1 {
                 println!("{}\n\nApp ID field must be 1 or greater", usage);
                 std::process::exit(1);
@@ -248,7 +248,7 @@ async fn main() {
         }
     };
 
-    if matches.is_present("list_versions") {
+    if let Some(true) = matches.get_one::<bool>("list_versions") {
         match download_source {
             DownloadSource::APKPure => {
                 apkpure::list_versions(list).await;
@@ -264,9 +264,9 @@ async fn main() {
             }
         }
     } else {
-        let parallel: usize = matches.value_of_t("parallel").unwrap();
-        let sleep_duration: u64 = matches.value_of_t("sleep_duration").unwrap();
-        let outpath = matches.value_of("OUTPATH");
+        let parallel = matches.get_one::<usize>("parallel").map(|v| *v).unwrap();
+        let sleep_duration = matches.get_one::<u64>("sleep_duration").map(|v| *v).unwrap();
+        let outpath = matches.get_one::<String>("OUTPATH");
         if outpath.is_none() {
             println!("{}\n\nOUTPATH must be specified when downloading files", usage);
             std::process::exit(1);
@@ -286,10 +286,10 @@ async fn main() {
                 apkpure::download_apps(list, parallel, sleep_duration, &outpath).await;
             }
             DownloadSource::GooglePlay => {
-                let mut username = matches.value_of("google_username").map(|v| v.to_string());
-                let mut password = matches.value_of("google_password").map(|v| v.to_string());
+                let mut username = matches.get_one::<String>("google_username").map(|v| v.to_string());
+                let mut password = matches.get_one::<String>("google_password").map(|v| v.to_string());
 
-                let ini_file = matches.value_of("ini").map(|ini_file| {
+                let ini_file = matches.get_one::<String>("ini").map(|ini_file| {
                     match fs::canonicalize(ini_file) {
                         Ok(ini_file) if Path::new(&ini_file).is_file() => {
                             ini_file

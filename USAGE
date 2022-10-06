@@ -1,51 +1,36 @@
-apkeep v0.13.0 
-William Budington <bill@eff.org>
 Downloads APKs from various sources
 
-USAGE:
-    apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH
+Usage: apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH
 
-ARGS:
-    <OUTPATH>    Path to store output files
+Arguments:
+  [OUTPATH]  Path to store output files
 
-OPTIONS:
-    -a, --app <app>
-            Provide the ID and optionally the version of an app directly (e.g.
-            com.instagram.android)
-
-    -c, --csv <csv>
-            CSV file to use
-
-    -d, --download-source <download_source>
-            Where to download the APKs from [default: apk-pure] [possible values: apk-pure,
-            google-play, f-droid, huawei-app-gallery]
-
-    -f, --field <field>
-            CSV field containing app IDs (used only if CSV is specified) [default: 1]
-
-    -h, --help
-            Print help information
-
-    -i, --ini <ini>
-            The path to an ini file which contains configuration data
-
-    -l, --list-versions
-            List the versions available
-
-    -o, --options <options>
-            A comma-separated list of additional options to pass to the download source
-
-    -p, --password <google_password>
-            Google App Password (required if download source is Google Play)
-
-    -r, --parallel <parallel>
-            The number of parallel APK fetches to run at a time [default: 4]
-
-    -s, --sleep-duration <sleep_duration>
-            Sleep duration (in ms) before download requests [default: 0]
-
-    -u, --username <google_username>
-            Google Username (required if download source is Google Play)
-
-    -v, --version-field <version_field>
-            CSV field containing versions (used only if CSV is specified)
+Options:
+  -a, --app <app>
+          Provide the ID and optionally the version of an app directly (e.g. com.instagram.android)
+  -c, --csv <csv>
+          CSV file to use
+  -f, --field <field>
+          CSV field containing app IDs (used only if CSV is specified) [default: 1]
+  -v, --version-field <version_field>
+          CSV field containing versions (used only if CSV is specified)
+  -l, --list-versions
+          List the versions available
+  -d, --download-source <download_source>
+          Where to download the APKs from [default: apk-pure] [possible values: apk-pure, google-play, f-droid, huawei-app-gallery]
+  -o, --options <options>
+          A comma-separated list of additional options to pass to the download source
+  -i, --ini <ini>
+          The path to an ini file which contains configuration data
+  -u, --username <google_username>
+          Google Username (required if download source is Google Play)
+  -p, --password <google_password>
+          Google App Password (required if download source is Google Play)
+  -s, --sleep-duration <sleep_duration>
+          Sleep duration (in ms) before download requests [default: 0]
+  -r, --parallel <parallel>
+          The number of parallel APK fetches to run at a time [default: 4]
+  -h, --help
+          Print help information
+  -V, --version
+          Print version information
