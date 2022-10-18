@@ -5,7 +5,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum DownloadSource {
     APKPure,
-    GooglePlay,
     FDroid,
     HuaweiAppGallery,
 }
@@ -110,22 +109,6 @@ pub fn app() -> Command<'static> {
                 .long("ini")
                 .takes_value(true)
                 .required(false),
-        )
-        .arg(
-            Arg::new("google_username")
-                .help("Google Username (required if download source is Google Play)")
-                .short('u')
-                .long("username")
-                .takes_value(true)
-                .required_if_eq("download_source", "GooglePlay"),
-        )
-        .arg(
-            Arg::new("google_password")
-                .help("Google App Password (required if download source is Google Play)")
-                .short('p')
-                .long("password")
-                .takes_value(true)
-                .required_if_eq("download_source", "GooglePlay"),
         )
         .arg(
             Arg::new("sleep_duration")
