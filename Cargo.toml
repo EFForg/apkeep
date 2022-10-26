@@ -13,23 +13,23 @@ tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["stream"] }
 futures-util = { version = "0.3", features = ["io"] }
 regex = "1.5"
-clap = { version = "3.0", features = ["derive"] }
-gpapi = "2.0"
+clap = { version = "3", features = ["derive"] }
+gpapi = "3"
 tokio-dl-stream-to-disk = { version = "0.3", features = ["sha256sum"] }
 tempfile = "3"
 dirs = "4.0"
 zip = "0.6"
-cryptographic-message-syntax = "0.16"
+cryptographic-message-syntax = "0.18"
 openssl = "0.10"
-x509-certificate = "0.13"
+x509-certificate = "0.15"
 simple-error = "0.2"
 sha-1 = "0.10"
 base64 = "0.13"
 serde_json = "1"
 hex = "0.4"
-rpassword = "6.0"
+rpassword = "7.0"
 configparser = "3.0"
 serde = { version = "1.0", features = ["derive"] }
 
 [build-dependencies]
-clap = { version = "3.0", features = ["derive"] }
+clap = { version = "3", features = ["derive"] }
