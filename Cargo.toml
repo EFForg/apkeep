@@ -27,7 +27,7 @@ sha-1 = "0.10"
 base64 = "0.13"
 serde_json = "1"
 hex = "0.4"
-rpassword = "7.0"
+rpassword = "7.1"
 configparser = "3.0"
 serde = { version = "1.0", features = ["derive"] }
 
