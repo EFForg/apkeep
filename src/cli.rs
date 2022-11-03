@@ -110,7 +110,6 @@ pub fn app() -> Command {
                 .short('u')
                 .long("username")
                 .action(ArgAction::Set)
-                .required_if_eq("download_source", "google-play"),
         )
         .arg(
             Arg::new("google_password")
@@ -118,7 +117,6 @@ pub fn app() -> Command {
                 .short('p')
                 .long("password")
                 .action(ArgAction::Set)
-                .required_if_eq("download_source", "google-play"),
         )
         .arg(
             Arg::new("sleep_duration")
