@@ -9,9 +9,8 @@ use std::rc::Rc;
 
 use cryptographic_message_syntax::{SignedData, SignerInfo};
 use futures_util::StreamExt;
-use openssl::x509::X509;
-use openssl::hash::MessageDigest;
 use regex::Regex;
+use ring::digest::{Context, SHA256};
 use serde_json::Value;
 use sha1::{Sha1, Digest};
 use simple_error::SimpleError;
@@ -367,8 +366,9 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
             &signed_data,
             &signed_content)?;
         let cert = signed_data.certificates().next().unwrap();
-        let x509 = X509::from_der(&cert.encode_ber()?)?;
-        let cert_fingerprint = x509.digest(MessageDigest::from_name("sha256").unwrap())?;
+        let mut context = Context::new(&SHA256);
+        context.update(&cert.encode_ber()?);
+        let cert_fingerprint = context.finish();
         if cert_fingerprint.as_ref() != fingerprint {
             return Err(Box::new(SimpleError::new("Fingerprint of the key contained in the F-Droid repository index does not match the expected fingerprint.")))
         };
