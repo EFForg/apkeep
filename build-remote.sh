@@ -29,9 +29,9 @@ export PKG_CONFIG_PATH="/usr/lib/aarch-linux-gnu-gcc/pkgconfig"
 cargo build --release --target=aarch64-unknown-linux-gnu
 
 cd ~
-wget https://www.openssl.org/source/openssl-3.0.3.tar.gz
-tar -zxvf openssl-3.0.3.tar.gz
-cd openssl-3.0.3
+wget https://www.openssl.org/source/openssl-3.0.7.tar.gz
+tar -zxvf openssl-3.0.7.tar.gz
+cd openssl-3.0.7
 wget https://raw.githubusercontent.com/EFForg/apkeep-files/main/Configurations-15-android.conf.patch
 patch -u Configurations/15-android.conf Configurations-15-android.conf.patch
 export OPENSSL_DIR=$PWD
@@ -76,13 +76,13 @@ sudo ln -s clang-11 /usr/bin/clang && sudo ln -s clang /usr/bin/clang++ && sudo 
 sudo ln -s clang-11 /usr/bin/clang-cl && sudo ln -s llvm-ar-11 /usr/bin/llvm-lib && sudo ln -s lld-link-11 /usr/bin/lld-link && sudo ln -s lld-link /usr/bin/link.exe
 
 cd ~
-wget https://github.com/EFForg/apkeep-files/raw/main/openssl-3.0.3-static-x86_64-pc-windows-msvc.tar.gz
-tar -zxvf openssl-3.0.3-static-x86_64-pc-windows-msvc.tar.gz
-cd openssl-3.0.3
+wget https://github.com/EFForg/apkeep-files/raw/main/openssl-3.0.7-static-x86_64-pc-windows-msvc.tar.gz
+tar -zxvf openssl-3.0.7-static-x86_64-pc-windows-msvc.tar.gz
+cd openssl-3.0.7
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
-XWIN_VERSION="0.2.1"
+XWIN_VERSION="0.2.9"
 XWIN_PREFIX="xwin-$XWIN_VERSION-x86_64-unknown-linux-musl"
 curl --fail -L https://github.com/Jake-Shadle/xwin/releases/download/$XWIN_VERSION/$XWIN_PREFIX.tar.gz | tar -xzv -C ~/.cargo/bin --strip-components=1 $XWIN_PREFIX/xwin
 cd ~ && mkdir xwin
