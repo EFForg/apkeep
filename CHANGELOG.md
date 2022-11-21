@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2022-11-21
+- Downloading split APKs downloads the base APK as well
+- Switch to OpenSSL 3.0.7
+- Update dependencies
+
 ## [0.13.0] - 2022-05-26
 - Add support for downloading split APKs with `google-play`
 - Add support for downloading additional files with `google-play`
