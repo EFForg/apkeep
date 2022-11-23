@@ -1,6 +1,6 @@
 [package]
 name = "apkeep"
-version = "0.14.0"
+version = "0.14.1"
 authors = ["William Budington <bill@eff.org>"]
 edition = "2021"
 license = "MIT"

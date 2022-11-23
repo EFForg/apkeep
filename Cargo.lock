@@ -46,7 +46,7 @@ checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 
 [[package]]
 name = "apkeep"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "base64",
  "clap",

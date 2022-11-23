@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1] - 2022-11-23
+- Bugfix release: updating `zstd-sys` dependency, which fixes cross-compilation for Windows
+
 ## [0.14.0] - 2022-11-21
 - Downloading split APKs downloads the base APK as well
 - Switch to OpenSSL 3.0.7
