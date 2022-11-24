@@ -38,12 +38,14 @@ export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
 cd ~
-wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip
-# later versions are available, but lack the necessary *-linux-android-ar binaries
-unzip android-ndk-r21e-linux-x86_64.zip
-cd android-ndk-r21e
+wget https://dl.google.com/android/repository/android-ndk-r22b-linux-x86_64.zip
+# later versions are available, but run into problems: see https://github.com/bbqsrc/cargo-ndk/issues/22
+unzip android-ndk-r22b-linux-x86_64.zip
+cd android-ndk-r22b
 export ANDROID_NDK_ROOT="$PWD"
-export PATH="$PATH:$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin"
+export OLDPATH="$PATH"
+export PATH="$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+export AR="llvm-ar"
 
 cd $OPENSSL_DIR
 ./Configure android-arm64 -D__ANDROID_API__=21
@@ -71,6 +73,9 @@ make clean
 make
 cd ../apkeep
 cargo build --release --target=x86_64-linux-android
+
+export PATH="$OLDPATH"
+unset AR
 
 sudo ln -s clang-11 /usr/bin/clang && sudo ln -s clang /usr/bin/clang++ && sudo ln -s lld-11 /usr/bin/ld.lld
 sudo ln -s clang-11 /usr/bin/clang-cl && sudo ln -s llvm-ar-11 /usr/bin/llvm-lib && sudo ln -s lld-link-11 /usr/bin/lld-link && sudo ln -s lld-link /usr/bin/link.exe
