@@ -136,7 +136,13 @@ pub fn app() -> Command {
                 .value_parser(value_parser!(usize))
                 .default_value("4")
                 .required(false),
-        )
+        ).arg(
+        Arg::new("all")
+            .help("Downloads all versions")
+            .long("all")
+            .action(ArgAction::SetTrue)
+            .required(false)
+    )
         .arg(
             Arg::new("OUTPATH")
                 .help("Path to store output files")
