@@ -155,3 +155,37 @@ pub async fn list_versions(apps: Vec<(String, Option<String>)>) {
         }.await;
     }
 }
+
+pub async fn list_versions_for_one_app(app: &String) -> Vec<String> {
+    let http_client = Rc::new(reqwest::Client::new());
+    let re = Rc::new(Regex::new(r"([[:alnum:]\.-]+):\([[:xdigit:]]{40,}").unwrap());
+    let headers = http_headers();
+
+    async move {
+        let versions_url = Url::parse(&format!("{}{}", crate::consts::APKPURE_VERSIONS_URL_FORMAT, app)).unwrap();
+        let versions_response = http_client
+            .get(versions_url)
+            .headers(headers)
+            .send().await.unwrap();
+
+        return match versions_response.status() {
+            reqwest::StatusCode::OK => {
+                let body = versions_response.text().await.unwrap();
+                let mut versions = HashSet::new();
+                for caps in re.captures_iter(&body) {
+                    if caps.len() >= 2 {
+                        versions.insert(caps.get(1).unwrap().as_str().to_string());
+                    }
+                }
+                let mut versions = versions.drain().collect::<Vec<String>>();
+                versions.sort();
+                println!("| {}", versions.join(", "));
+                versions
+            }
+            _ => {
+                println!("| Invalid app response for {}. Skipping...", app);
+                vec![]
+            }
+        }
+    }.await
+}

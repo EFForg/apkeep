@@ -210,15 +210,46 @@ async fn main() {
         },
         None => HashMap::new()
     };
+
     let list = match matches.get_one::<String>("app") {
         Some(app) => {
+            let parallel = matches.get_one::<usize>("parallel").map(|v| *v).unwrap();
+            let sleep_duration = matches.get_one::<u64>("sleep_duration").map(|v| *v).unwrap();
+            let outpath = matches.get_one::<String>("OUTPATH");
+            if outpath.is_none() {
+                println!("{}\n\nOUTPATH must be specified when downloading files", usage);
+                std::process::exit(1);
+            }
+            let outpath = match fs::canonicalize(outpath.unwrap()) {
+                Ok(outpath) if Path::new(&outpath).is_dir() => {
+                    outpath
+                },
+                _ => {
+                    println!("{}\n\nOUTPATH is not a valid directory", usage);
+                    std::process::exit(1);
+                }
+            };
             let mut app_vec: Vec<String> = app.splitn(2, '@').map(String::from).collect();
             let app_id = app_vec.remove(0);
             let app_version = match app_vec.len() {
                 1 => Some(app_vec.remove(0)),
                 _ => None,
             };
-            vec![(app_id, app_version)]
+
+            if let Some(true) = matches.get_one::<bool>("all") {
+                let versions = apkpure::list_versions_for_one_app(&app_id).await;
+
+                let app_versions = dbg!(versions
+                    .into_iter()
+                    .map(|s| (app_id.to_owned(), Some(s)))
+                    .collect::<Vec<(String, Option<String>)>>());
+
+                apkpure::download_apps(app_versions, parallel, sleep_duration, &outpath).await;
+
+                vec![(app_id, app_version)]
+            } else {
+                vec![(app_id, app_version)]
+            }
         },
         None => {
             let csv = matches.get_one::<String>("csv").unwrap();

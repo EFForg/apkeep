@@ -30,6 +30,8 @@ Options:
           Sleep duration (in ms) before download requests [default: 0]
   -r, --parallel <parallel>
           The number of parallel APK fetches to run at a time [default: 4]
+      --all
+          Downloads all versions
   -h, --help
           Print help information
   -V, --version
