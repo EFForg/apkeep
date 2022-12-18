@@ -4,11 +4,14 @@ use std::path::Path;
 use std::rc::Rc;
 
 use futures_util::StreamExt;
+use indicatif::MultiProgress;
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Url, Response};
-use tokio_dl_stream_to_disk::error::ErrorKind as TDSTDErrorKind;
+use tokio_dl_stream_to_disk::{AsyncDownload, error::ErrorKind as TDSTDErrorKind};
 use tokio::time::{sleep, Duration as TokioDuration};
+
+use crate::progress_bar::progress_wrapper;
 
 fn http_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -28,6 +31,7 @@ pub async fn download_apps(
     sleep_duration: u64,
     outpath: &Path,
 ) {
+    let mp = Rc::new(MultiProgress::new());
     let http_client = Rc::new(reqwest::Client::new());
     let headers = http_headers();
     let re = Rc::new(Regex::new(crate::consts::APKPURE_DOWNLOAD_URL_REGEX).unwrap());
@@ -38,14 +42,16 @@ pub async fn download_apps(
             let http_client = Rc::clone(&http_client);
             let re = Rc::clone(&re);
             let headers = headers.clone();
+            let mp = Rc::clone(&mp);
+            let mp_log = Rc::clone(&mp);
             async move {
                 let app_string = match app_version {
                     Some(ref version) => {
-                        println!("Downloading {} version {}...", app_id, version);
+                        mp_log.println(format!("Downloading {} version {}...", app_id, version)).unwrap();
                         format!("{}@{}", app_id, version)
                     },
                     None => {
-                        println!("Downloading {}...", app_id);
+                        mp_log.println(format!("Downloading {}...", app_id)).unwrap();
                         app_id.to_string()
                     },
                 };
@@ -60,16 +66,18 @@ pub async fn download_apps(
                 if let Some(app_version) = app_version {
                     let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), crate::consts::APKPURE_DOWNLOAD_URL_REGEX);
                     let re = Regex::new(&regex_string).unwrap();
-                    download_from_response(versions_response, Box::new(Box::new(re)), app_string, outpath).await;
+                    download_from_response(versions_response, Box::new(Box::new(re)), app_string, outpath, mp).await;
                 } else {
-                    download_from_response(versions_response, Box::new(re), app_string, outpath).await;
+                    download_from_response(versions_response, Box::new(re), app_string, outpath, mp).await;
                 }
             }
         })
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
 }
 
-async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &Path) {
+async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Regex>>, app_string: String, outpath: &Path, mp: Rc<MultiProgress>) {
+    let mp_log = Rc::clone(&mp);
+    let mp = Rc::clone(&mp);
     match response.status() {
         reqwest::StatusCode::OK => {
             let body = response.text().await.unwrap();
@@ -81,39 +89,53 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
                         "XAPKJ" => format!("{}.xapk", app_string),
                         _ => format!("{}.apk", app_string),
                     };
-                    match tokio_dl_stream_to_disk::download(download_url, Path::new(outpath), &fname).await {
-                        Ok(_) => println!("{} downloaded successfully!", app_string),
-                        Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
-                            println!("File already exists for {}. Skipping...", app_string);
-                        },
-                        Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
-                            println!("Permission denied when attempting to write file for {}. Skipping...", app_string);
-                        },
-                        Err(_) => {
-                            println!("An error has occurred attempting to download {}.  Retry #1...", app_string);
-                            match tokio_dl_stream_to_disk::download(download_url, Path::new(outpath), &fname).await {
-                                Ok(_) => println!("{} downloaded successfully!", app_string),
+
+                    match AsyncDownload::new(download_url, Path::new(outpath), &fname).get().await {
+                        Ok(mut dl) => {
+                            let length = dl.length();
+                            let cb = match length {
+                                Some(length) => Some(progress_wrapper(mp)(fname.clone(), length)),
+                                None => None,
+                            };
+
+                            match dl.download(&cb).await {
+                                Ok(_) => mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap(),
+                                Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
+                                    mp_log.println(format!("File already exists for {}. Skipping...", app_string)).unwrap();
+                                },
+                                Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
+                                    mp_log.println(format!("Permission denied when attempting to write file for {}. Skipping...", app_string)).unwrap();
+                                },
                                 Err(_) => {
-                                    println!("An error has occurred attempting to download {}.  Retry #2...", app_string);
-                                    match tokio_dl_stream_to_disk::download(download_url, Path::new(outpath), &fname).await {
-                                        Ok(_) => println!("{} downloaded successfully!", app_string),
+                                    mp_log.println(format!("An error has occurred attempting to download {}.  Retry #1...", app_string)).unwrap();
+                                    match AsyncDownload::new(download_url, Path::new(outpath), &fname).download(&cb).await {
+                                        Ok(_) => mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap(),
                                         Err(_) => {
-                                            println!("An error has occurred attempting to download {}. Skipping...", app_string);
+                                            mp_log.println(format!("An error has occurred attempting to download {}.  Retry #2...", app_string)).unwrap();
+                                            match AsyncDownload::new(download_url, Path::new(outpath), &fname).download(&cb).await {
+                                                Ok(_) => mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap(),
+                                                Err(_) => {
+                                                    mp_log.println(format!("An error has occurred attempting to download {}. Skipping...", app_string)).unwrap();
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
+                        },
+                        Err(_) => {
+                            mp_log.println(format!("Invalid response for {}. Skipping...", app_string)).unwrap();
                         }
                     }
                 },
                 _ => {
-                    println!("Could not get download URL for {}. Skipping...", app_string);
+                    mp_log.println(format!("Could not get download URL for {}. Skipping...", app_string)).unwrap();
                 }
             }
 
         },
         _ => {
-            println!("Invalid app response for {}. Skipping...", app_string);
+            mp_log.println(format!("Invalid app response for {}. Skipping...", app_string)).unwrap();
         }
     }
 }

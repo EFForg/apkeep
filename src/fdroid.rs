@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use cryptographic_message_syntax::{SignedData, SignerInfo};
 use futures_util::StreamExt;
+use indicatif::MultiProgress;
 use regex::Regex;
 use ring::digest::{Context, SHA256};
 use serde_json::Value;
@@ -16,15 +17,16 @@ use sha1::{Sha1, Digest};
 use simple_error::SimpleError;
 use tempfile::{tempdir, TempDir};
 use tokio::time::{sleep, Duration};
-use tokio_dl_stream_to_disk::error::ErrorKind as TDSTDErrorKind;
+use tokio_dl_stream_to_disk::{AsyncDownload, error::ErrorKind as TDSTDErrorKind};
 use x509_certificate::certificate::CapturedX509Certificate;
 
 use crate::consts;
 use crate::config::{self, ConfigDirError};
+use crate::progress_bar::progress_wrapper;
 mod error;
 use error::Error as FDroidError;
 
-async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
+async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgress>) -> Value {
     let temp_dir = match tempdir() {
         Ok(temp_dir) => temp_dir,
         Err(_) => {
@@ -110,7 +112,7 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>) -> Value {
         };
         serde_json::from_str(&index).unwrap()
     } else {
-        let files = download_and_extract_index_to_tempdir(&temp_dir, &repo).await;
+        let files = download_and_extract_index_to_tempdir(&temp_dir, &repo, mp).await;
         let verify_index = match options.get("verify-index") {
             Some(&"false") => false,
             _ => true,
@@ -151,7 +153,9 @@ pub async fn download_apps(
     outpath: &Path,
     options: HashMap<&str, &str>,
 ) {
-    let index = retrieve_index_or_exit(&options).await;
+    let mp = Rc::new(MultiProgress::new());
+    let mp_index = Rc::clone(&mp);
+    let index = retrieve_index_or_exit(&options, mp_index).await;
 
     let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps) {
         Ok((fdroid_apps, repo_address)) => (fdroid_apps, repo_address),
@@ -166,14 +170,16 @@ pub async fn download_apps(
         fdroid_apps.into_iter().map(|fdroid_app| {
             let (app_id, app_version, url_filename, hash) = fdroid_app;
             let repo_address = Rc::clone(&repo_address);
+            let mp_log = Rc::clone(&mp);
+            let mp = Rc::clone(&mp);
             async move {
                 let app_string = match app_version {
                     Some(ref version) => {
-                        println!("Downloading {} version {}...", app_id, version);
+                        mp_log.println(format!("Downloading {} version {}...", app_id, version)).unwrap();
                         format!("{}@{}", app_id, version)
                     },
                     None => {
-                        println!("Downloading {}...", app_id);
+                        mp_log.println(format!("Downloading {}...", app_id)).unwrap();
                         app_id.to_string()
                     },
                 };
@@ -182,39 +188,52 @@ pub async fn download_apps(
                     sleep(Duration::from_millis(sleep_duration)).await;
                 }
                 let download_url = format!("{}/{}", repo_address, url_filename);
-                let sha256sum = match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, Path::new(outpath), &fname).await {
-                    Ok(sha256sum) => Some(sha256sum),
-                    Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
-                        println!("File already exists for {}. Skipping...", app_string);
-                        None
-                    },
-                    Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
-                        println!("Permission denied when attempting to write file for {}. Skipping...", app_string);
-                        None
-                    },
-                    Err(_) => {
-                        println!("An error has occurred attempting to download {}.  Retry #1...", app_string);
-                        match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, Path::new(outpath), &fname).await {
+                match AsyncDownload::new(&download_url, Path::new(outpath), &fname).get().await {
+                    Ok(mut dl) => {
+                        let length = dl.length();
+                        let cb = match length {
+                            Some(length) => Some(progress_wrapper(mp)(fname.clone(), length)),
+                            None => None,
+                        };
+
+                        let sha256sum = match dl.download_and_return_sha256sum(&cb).await {
                             Ok(sha256sum) => Some(sha256sum),
+                            Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
+                                mp_log.println(format!("File already exists for {}. Skipping...", app_string)).unwrap();
+                                None
+                            },
+                            Err(err) if matches!(err.kind(), TDSTDErrorKind::PermissionDenied) => {
+                                mp_log.println(format!("Permission denied when attempting to write file for {}. Skipping...", app_string)).unwrap();
+                                None
+                            },
                             Err(_) => {
-                                println!("An error has occurred attempting to download {}.  Retry #2...", app_string);
-                                match tokio_dl_stream_to_disk::download_and_return_sha256sum(&download_url, Path::new(outpath), &fname).await {
+                                mp_log.println(format!("An error has occurred attempting to download {}.  Retry #1...", app_string)).unwrap();
+                                match AsyncDownload::new(&download_url, Path::new(outpath), &fname).download_and_return_sha256sum(&cb).await {
                                     Ok(sha256sum) => Some(sha256sum),
                                     Err(_) => {
-                                        println!("An error has occurred attempting to download {}. Skipping...", app_string);
-                                        None
+                                        mp_log.println(format!("An error has occurred attempting to download {}.  Retry #2...", app_string)).unwrap();
+                                        match AsyncDownload::new(&download_url, Path::new(outpath), &fname).download_and_return_sha256sum(&cb).await {
+                                            Ok(sha256sum) => Some(sha256sum),
+                                            Err(_) => {
+                                                mp_log.println(format!("An error has occurred attempting to download {}. Skipping...", app_string)).unwrap();
+                                                None
+                                            }
+                                        }
                                     }
                                 }
                             }
+                        };
+                        if let Some(sha256sum) = sha256sum {
+                            if sha256sum == hash {
+                                mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap();
+                            } else {
+                                mp_log.println(format!("{} downloaded, but the sha256sum does not match the one signed by F-Droid. Proceed with caution.", app_string)).unwrap();
+                            }
                         }
-                    }
-                };
-                if let Some(sha256sum) = sha256sum {
-                    if sha256sum == hash {
-                        println!("{} downloaded successfully!", app_string);
-                    } else {
-                        println!("{} downloaded, but the sha256sum does not match the one signed by F-Droid. Proceed with caution.", app_string);
-                    }
+                    },
+                    Err(_) => {
+                        mp_log.println(format!("Invalid response for {}. Skipping...", app_string)).unwrap();
+                    },
                 }
             }
         })
@@ -289,7 +308,8 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
 }
 
 pub async fn list_versions(apps: Vec<(String, Option<String>)>, options: HashMap<&str, &str>) {
-    let index = retrieve_index_or_exit(&options).await;
+    let mp = Rc::new(MultiProgress::new());
+    let index = retrieve_index_or_exit(&options, mp).await;
     if parse_json_display_versions(index, apps).is_err() {
         println!("Could not parse JSON of F-Droid package index. Exiting.");
     };
@@ -441,13 +461,20 @@ fn get_signed_data_from_cert_file(signature_block_file: PathBuf) -> Result<Signe
     }
 }
 
-async fn download_and_extract_index_to_tempdir(dir: &TempDir, repo: &str) -> Vec<String> {
+async fn download_and_extract_index_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<MultiProgress>) -> Vec<String> {
+    let mp_log = Rc::clone(&mp);
     println!("Downloading F-Droid package repository...");
     let mut files = vec![];
     let fdroid_index_url = format!("{}/index-v1.jar", repo);
-    match tokio_dl_stream_to_disk::download(fdroid_index_url, dir.path(), "index.zip".to_string()).await {
+    let mut dl = AsyncDownload::new(&fdroid_index_url, dir.path(), "index.zip").get().await.unwrap();
+    let length = dl.length();
+    let cb = match length {
+        Some(length) => Some(progress_wrapper(mp)("index.zip".to_string(), length)),
+        None => None,
+    };
+    match dl.download(&cb).await {
         Ok(_) => {
-            println!("Package repository downloaded successfully!\nExtracting...");
+            mp_log.println(format!("Package repository downloaded successfully!\nExtracting...")).unwrap();
             let file = fs::File::open(dir.path().join("index.zip")).unwrap();
             match zip::ZipArchive::new(file) {
                 Ok(mut archive) => {
