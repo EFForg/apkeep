@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2023-01-04
+- Add progress bars to all download sources
+- Update dependencies
+
 ## [0.14.1] - 2022-11-23
 - Bugfix release: updating `zstd-sys` dependency, which fixes cross-compilation for Windows
 
