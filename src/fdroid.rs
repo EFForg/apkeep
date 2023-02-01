@@ -7,6 +7,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use base64::{Engine as _, engine::general_purpose as b64_general_purpose};
 use cryptographic_message_syntax::{SignedData, SignerInfo};
 use futures_util::StreamExt;
 use indicatif::MultiProgress;
@@ -399,7 +400,7 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
     let manifest_file_data = fs::read(manifest_file)?;
     if verify_index {
         let signed_file_regex = Regex::new(r"\r\nSHA1-Digest-Manifest: (.*)\r\n").unwrap();
-        let signed_file_manifest_sha1sum = base64::decode(match signed_file_regex.captures(signed_file_string) {
+        let signed_file_manifest_sha1sum = b64_general_purpose::STANDARD.decode(match signed_file_regex.captures(signed_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
             _ => {
                 return Err(Box::new(SimpleError::new("Could not retrieve the manifest sha1sum from the signed file.")));
@@ -418,7 +419,7 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
     let index_file_data = fs::read(index_file)?;
     if verify_index {
         let manifest_file_regex = Regex::new(r"\r\nName: index-v1\.json\r\nSHA1-Digest: (.*)\r\n").unwrap();
-        let manifest_file_index_sha1sum = base64::decode(match manifest_file_regex.captures(manifest_file_string) {
+        let manifest_file_index_sha1sum = b64_general_purpose::STANDARD.decode(match manifest_file_regex.captures(manifest_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
             _ => {
                 return Err(Box::new(SimpleError::new("Could not retrieve the index sha1sum from the manifest file.")));

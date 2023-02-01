@@ -31,6 +31,6 @@ Options:
   -r, --parallel <parallel>
           The number of parallel APK fetches to run at a time [default: 4]
   -h, --help
-          Print help information
+          Print help
   -V, --version
-          Print version information
+          Print version
