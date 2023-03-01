@@ -19,7 +19,7 @@ tokio-dl-stream-to-disk = { version = "1", features = ["sha256sum"] }
 tempfile = "3"
 dirs = "4.0"
 zip = "0.6"
-cryptographic-message-syntax = "0.18"
+cryptographic-message-syntax = "0.21"
 ring = "0.16"
 x509-certificate = "0.15"
 simple-error = "0.2"
