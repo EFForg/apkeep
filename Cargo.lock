@@ -68,7 +68,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-dl-stream-to-disk",
- "x509-certificate",
+ "x509-certificate 0.18.0",
  "zip",
 ]
 
@@ -358,8 +358,8 @@ dependencies = [
  "pem",
  "reqwest",
  "ring",
- "signature",
- "x509-certificate",
+ "signature 1.6.4",
+ "x509-certificate 0.15.0",
 ]
 
 [[package]]
@@ -1708,6 +1708,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
 
 [[package]]
+name = "signature"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fe458c98333f9c8152221191a77e2a44e8325d0193484af2e9421a53019e57d"
+
+[[package]]
 name = "simple-error"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2305,7 +2311,25 @@ dependencies = [
  "hex",
  "pem",
  "ring",
- "signature",
+ "signature 1.6.4",
+ "spki",
+ "thiserror",
+]
+
+[[package]]
+name = "x509-certificate"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6ae06cd45e681e1ae216e2e668e30ce1c4f02db026374bde8c0644684af1721"
+dependencies = [
+ "bcder",
+ "bytes",
+ "chrono",
+ "der",
+ "hex",
+ "pem",
+ "ring",
+ "signature 2.0.0",
  "spki",
  "thiserror",
 ]
