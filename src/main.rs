@@ -284,7 +284,7 @@ async fn main() {
 
         match download_source {
             DownloadSource::APKPure => {
-                apkpure::download_apps(list, parallel, sleep_duration, &outpath).await;
+                apkpure::download_apps(list, parallel, sleep_duration, &outpath, true).await;
             }
             DownloadSource::GooglePlay => {
                 let mut username = matches.get_one::<String>("google_username").map(|v| v.to_string());

@@ -30,6 +30,7 @@ pub async fn download_apps(
     parallel: usize,
     sleep_duration: u64,
     outpath: &Path,
+    xapk_bundle: bool
 ) {
     let mp = Rc::new(MultiProgress::new());
     let http_client = Rc::new(reqwest::Client::new());
@@ -64,7 +65,11 @@ pub async fn download_apps(
                     .headers(headers)
                     .send().await.unwrap();
                 if let Some(app_version) = app_version {
-                    let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), crate::consts::APKPURE_DOWNLOAD_URL_REGEX);
+                    let download_url_regex = match xapk_bundle {
+                        true => format!("(XAPKJ)..{}", crate::consts::APKPURE_DOWNLOAD_URL_REGEX),
+                        false => format!("[^X](APKJ)..{}", crate::consts::APKPURE_DOWNLOAD_URL_REGEX)
+                    };
+                    let regex_string = format!("[[:^digit:]]{}:(?s:.)+?{}", regex::escape(&app_version), download_url_regex);
                     let re = Regex::new(&regex_string).unwrap();
                     download_from_response(versions_response, Box::new(Box::new(re)), app_string, outpath, mp).await;
                 } else {
