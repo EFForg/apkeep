@@ -22,10 +22,14 @@ Options:
           A comma-separated list of additional options to pass to the download source
   -i, --ini <ini>
           The path to an ini file which contains configuration data
-  -u, --username <google_username>
-          Google Username (required if download source is Google Play)
-  -p, --password <google_password>
-          Google App Password (required if download source is Google Play)
+      --oauth-token <google_oauth_token>
+          Google oauth token, required to retrieve long-lived aas token
+  -e, --email <google_email>
+          Google account email address (required if download source is Google Play)
+  -t, --aas-token <google_aas_token>
+          Google aas token  (required if download source is Google Play)
+      --accept-tos
+          Accept Google Play Terms of Service
   -s, --sleep-duration <sleep_duration>
           Sleep duration (in ms) before download requests [default: 0]
   -r, --parallel <parallel>

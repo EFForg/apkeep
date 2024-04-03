@@ -16,6 +16,10 @@
 //! cargo install --git https://github.com/EFForg/apkeep.git
 //! ```
 //!
+//! If using on an Android platform, [`termux`](https://termux.org/) must be installed first.
+//! Upgrade to the latest packages with `pkg update`, then install the `apkeep` precompiled binary
+//! as described above or run `pkg install apkeep` to install from the `termux` repository.
+//!
 //! Docker images are also available through the GitHub Container Registry. Aside from using a
 //! specific release version, the following floating tags are available:
 //!
@@ -36,10 +40,11 @@
 //! ```
 //!
 //! This downloads from the default source, APKPure, which does not require credentials.  To
-//! download directly from the google play store:
+//! download directly from the google play store, you will first have to [obtain an AAS token](USAGE-google-play.md).
+//! Then,
 //!
 //! ```shell
-//! apkeep -a com.instagram.android -d google-play -u 'someone@gmail.com' -p somepass .
+//! apkeep -a com.instagram.android -d google-play -e 'someone@gmail.com' -t aas_token .
 //! ```
 //!
 //! For more google play usage examples, such as specifying a device configuration, timezone or
@@ -95,7 +100,7 @@
 //!
 //! You can use this tool to download from a few distinct sources.
 //!
-//! * The Google Play Store (`-d google-play`), given a username and password
+//! * The Google Play Store (`-d google-play`), given an email address and AAS token
 //! * APKPure (`-d apk-pure`), a third-party site hosting APKs available on the Play Store
 //! * F-Droid (`-d f-droid`), a repository for free and open-source Android apps. `apkeep`
 //! verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
