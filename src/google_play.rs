@@ -14,14 +14,13 @@ pub async fn download_apps(
     apps: Vec<(String, Option<String>)>,
     parallel: usize,
     sleep_duration: u64,
-    username: &str,
-    password: &str,
+    email: &str,
+    aas_token: &str,
     outpath: &Path,
+    accept_tos: bool,
     mut options: HashMap<&str, &str>,
 ) {
-    let locale = options.remove("locale").unwrap_or("en_US");
-    let timezone = options.remove("timezone").unwrap_or("UTC");
-    let device = options.remove("device").unwrap_or("hero2lte");
+    let device = options.remove("device").unwrap_or("px_7a");
     let split_apk = match options.remove("split_apk") {
         Some(val) if val == "1" || val.to_lowercase() == "true" => true,
         _ => false,
@@ -30,14 +29,43 @@ pub async fn download_apps(
         Some(val) if val == "1" || val.to_lowercase() == "true" => true,
         _ => false,
     };
-    let mut gpa = Gpapi::new(locale, timezone, device);
+    let mut gpa = Gpapi::new(device, email);
 
-    if let Err(err) = gpa.login(username, password).await {
+    if let Some(locale) = options.remove("locale") {
+        gpa.set_locale(locale);
+    }
+    if let Some(timezone) = options.remove("timezone") {
+        gpa.set_timezone(timezone);
+    }
+
+    gpa.set_aas_token(aas_token);
+    if let Err(err) = gpa.login().await {
         match err.kind() {
-            GpapiErrorKind::SecurityCheck | GpapiErrorKind::EncryptLogin => println!("{}", err),
-            _ => println!("Could not log in to Google Play.  Please check your credentials and try again later."),
+            GpapiErrorKind::TermsOfService => {
+                if accept_tos {
+                    match gpa.accept_tos().await {
+                        Ok(_) => {
+                            if let Err(_) = gpa.login().await {
+                                println!("Could not log in, even after accepting the Google Play Terms of Service");
+                                std::process::exit(1);
+                            }
+                            println!("Google Play Terms of Service accepted.");
+                        },
+                        _ => {
+                            println!("Could not accept Google Play Terms of Service");
+                            std::process::exit(1);
+                        },
+                    }
+                } else {
+                    println!("{}\nPlease read the ToS here: https://play.google.com/about/play-terms/index.html\nIf you accept, please pass the --accept-tos flag.", err);
+                    std::process::exit(1);
+                }
+            },
+            _ => {
+                println!("Could not log in to Google Play.  Please check your credentials and try again later. {}", err);
+                std::process::exit(1);
+            }
         }
-        std::process::exit(1);
     }
 
     let mp = Rc::new(MultiProgress::new());
@@ -93,6 +121,24 @@ pub async fn download_apps(
             }
         })
     ).buffer_unordered(parallel).collect::<Vec<()>>().await;
+}
+
+pub async fn request_aas_token(
+    email: &str,
+    oauth_token: &str,
+    mut options: HashMap<&str, &str>,
+) {
+    let device = options.remove("device").unwrap_or("px_7a");
+    let mut api = Gpapi::new(device, email);
+    match api.request_aas_token(oauth_token).await {
+        Ok(()) => {
+            let aas_token = api.get_aas_token().unwrap();
+            println!("AAS Token: {}", aas_token);
+        },
+        Err(_) => {
+            println!("Error: was not able to retrieve AAS token with the provided OAuth token. Please provide new OAuth token and try again.");
+        }
+    }
 }
 
 pub fn list_versions(apps: Vec<(String, Option<String>)>) {

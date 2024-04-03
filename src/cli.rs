@@ -43,7 +43,7 @@ pub fn app() -> Command {
                 .long("app")
                 .action(ArgAction::Set)
                 .conflicts_with("csv")
-                .required_unless_present("csv"),
+                .required_unless_present_any(["csv", "google_oauth_token"]),
         )
         .arg(
             Arg::new("csv")
@@ -105,18 +105,30 @@ pub fn app() -> Command {
                 .required(false),
         )
         .arg(
-            Arg::new("google_username")
-                .help("Google Username (required if download source is Google Play)")
-                .short('u')
-                .long("username")
+            Arg::new("google_oauth_token")
+                .help("Google oauth token, required to retrieve long-lived aas token")
+                .long("oauth-token")
                 .action(ArgAction::Set)
         )
         .arg(
-            Arg::new("google_password")
-                .help("Google App Password (required if download source is Google Play)")
-                .short('p')
-                .long("password")
+            Arg::new("google_email")
+                .help("Google account email address (required if download source is Google Play)")
+                .short('e')
+                .long("email")
                 .action(ArgAction::Set)
+        )
+        .arg(
+            Arg::new("google_aas_token")
+                .help("Google aas token  (required if download source is Google Play)")
+                .short('t')
+                .long("aas-token")
+                .action(ArgAction::Set)
+        )
+        .arg(
+            Arg::new("google_accept_tos")
+                .help("Accept Google Play Terms of Service")
+                .long("accept-tos")
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("sleep_duration")
@@ -141,6 +153,7 @@ pub fn app() -> Command {
             Arg::new("OUTPATH")
                 .help("Path to store output files")
                 .action(ArgAction::Set)
-                .index(1),
+                .index(1)
+                .required_unless_present("google_oauth_token"),
         )
 }
