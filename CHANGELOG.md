@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2024-04-04
+- Support Google Play API v3 and document workflow for downloading via Google Play
+
 ## [0.15.0] - 2023-01-04
 - Add progress bars to all download sources
 - Update dependencies
