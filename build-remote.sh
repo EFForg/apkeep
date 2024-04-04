@@ -43,8 +43,12 @@ unzip android-ndk-r26c-linux.zip
 cd android-ndk-r26c
 export ANDROID_NDK_ROOT="$PWD"
 export OLDPATH="$PATH"
-export PATH="$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+export NEWPATH="$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin"
+export PATH="$NEWPATH:$PATH"
 export AR="llvm-ar"
+cd $NEWPATH
+ln -s armv7a-linux-androideabi26-clang arm-linux-androideabi-clang
+ln -s i686-linux-android26-clang i686-linux-android-clang
 
 cd $OPENSSL_DIR
 ./Configure android-arm64 -D__ANDROID_API__=26
