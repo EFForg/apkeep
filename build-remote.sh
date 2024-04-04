@@ -39,7 +39,7 @@ export OPENSSL_LIB_DIR=$PWD
 
 cd ~
 wget https://dl.google.com/android/repository/android-ndk-r26c-linux.zip
-unzip android-ndk-r26c.zip
+unzip android-ndk-r26c-linux.zip
 cd android-ndk-r26c
 export ANDROID_NDK_ROOT="$PWD"
 export OLDPATH="$PATH"
