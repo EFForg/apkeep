@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build `apkeep` for release from a fresh Debian 10 x64 install
+# Build `apkeep` for release from a fresh Debian 12 x64 install
 
 ssh -o 'StrictHostKeyChecking no' apkeep-compiler << 'EOF'
 sudo dpkg --add-architecture armhf
@@ -11,7 +11,7 @@ sudo apt-get -y install git build-essential libssl-dev pkg-config unzip gcc-mult
 sudo apt-get -y install libc6-armhf-cross libc6-dev-armhf-cross gcc-arm-linux-gnueabihf libssl-dev:armhf
 sudo apt-get -y install libc6-i386-cross libc6-dev-i386-cross gcc-i686-linux-gnu libssl-dev:i386
 sudo apt-get -y install libc6-arm64-cross libc6-dev-arm64-cross gcc-aarch64-linux-gnu libssl-dev:arm64
-sudo apt-get -y install clang-11 llvm-11 lld-11
+sudo apt-get -y install clang-16 llvm-16 lld-16
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/get_rust.sh
 bash /tmp/get_rust.sh -y
 source ~/.cargo/env
@@ -29,47 +29,46 @@ export PKG_CONFIG_PATH="/usr/lib/aarch-linux-gnu-gcc/pkgconfig"
 cargo build --release --target=aarch64-unknown-linux-gnu
 
 cd ~
-wget https://www.openssl.org/source/openssl-3.0.7.tar.gz
-tar -zxvf openssl-3.0.7.tar.gz
-cd openssl-3.0.7
+wget https://www.openssl.org/source/openssl-3.2.1.tar.gz
+tar -zxvf openssl-3.2.1.tar.gz
+cd openssl-3.2.1
 wget https://raw.githubusercontent.com/EFForg/apkeep-files/main/Configurations-15-android.conf.patch
 patch -u Configurations/15-android.conf Configurations-15-android.conf.patch
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
 cd ~
-wget https://dl.google.com/android/repository/android-ndk-r22b-linux-x86_64.zip
-# later versions are available, but run into problems: see https://github.com/bbqsrc/cargo-ndk/issues/22
-unzip android-ndk-r22b-linux-x86_64.zip
-cd android-ndk-r22b
+wget https://dl.google.com/android/repository/android-ndk-r26c-linux.zip
+unzip android-ndk-r26c.zip
+cd android-ndk-r26c
 export ANDROID_NDK_ROOT="$PWD"
 export OLDPATH="$PATH"
 export PATH="$PWD/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
 export AR="llvm-ar"
 
 cd $OPENSSL_DIR
-./Configure android-arm64 -D__ANDROID_API__=21
+./Configure android-arm64 -D__ANDROID_API__=26
 make
 cd ../apkeep
 cargo build --release --target=aarch64-linux-android
 
 cd $OPENSSL_DIR
 make clean
-./Configure android-arm -D__ANDROID_API__=21
+./Configure android-arm -D__ANDROID_API__=26
 make
 cd ../apkeep
 cargo build --release --target=armv7-linux-androideabi
 
 cd $OPENSSL_DIR
 make clean
-./Configure android-x86 -D__ANDROID_API__=21
+./Configure android-x86 -D__ANDROID_API__=26
 make
 cd ../apkeep
 cargo build --release --target=i686-linux-android
 
 cd $OPENSSL_DIR
 make clean
-./Configure android-x86_64 -D__ANDROID_API__=21
+./Configure android-x86_64 -D__ANDROID_API__=26
 make
 cd ../apkeep
 cargo build --release --target=x86_64-linux-android
@@ -77,17 +76,17 @@ cargo build --release --target=x86_64-linux-android
 export PATH="$OLDPATH"
 unset AR
 
-sudo ln -s clang-11 /usr/bin/clang && sudo ln -s clang /usr/bin/clang++ && sudo ln -s lld-11 /usr/bin/ld.lld
-sudo ln -s clang-11 /usr/bin/clang-cl && sudo ln -s llvm-ar-11 /usr/bin/llvm-lib && sudo ln -s lld-link-11 /usr/bin/lld-link && sudo ln -s lld-link /usr/bin/link.exe
+sudo ln -s clang-16 /usr/bin/clang && sudo ln -s clang /usr/bin/clang++ && sudo ln -s lld-16 /usr/bin/ld.lld
+sudo ln -s clang-16 /usr/bin/clang-cl && sudo ln -s llvm-ar-16 /usr/bin/llvm-lib && sudo ln -s lld-link-16 /usr/bin/lld-link && sudo ln -s lld-link /usr/bin/link.exe
 
 cd ~
-wget https://github.com/EFForg/apkeep-files/raw/main/openssl-3.0.7-static-x86_64-pc-windows-msvc.tar.gz
-tar -zxvf openssl-3.0.7-static-x86_64-pc-windows-msvc.tar.gz
-cd openssl-3.0.7
+wget https://github.com/EFForg/apkeep-files/raw/main/openssl-3.2.1-static-x86_64-pc-windows-msvc.tar.gz
+tar -zxvf openssl-3.2.1-static-x86_64-pc-windows-msvc.tar.gz
+cd openssl-3.2.1
 export OPENSSL_DIR=$PWD
 export OPENSSL_LIB_DIR=$PWD
 
-XWIN_VERSION="0.2.9"
+XWIN_VERSION="0.5.1"
 XWIN_PREFIX="xwin-$XWIN_VERSION-x86_64-unknown-linux-musl"
 curl --fail -L https://github.com/Jake-Shadle/xwin/releases/download/$XWIN_VERSION/$XWIN_PREFIX.tar.gz | tar -xzv -C ~/.cargo/bin --strip-components=1 $XWIN_PREFIX/xwin
 cd ~ && mkdir xwin

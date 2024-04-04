@@ -8,17 +8,17 @@ linker = "i686-linux-gnu-gcc"
 linker = "aarch64-linux-gnu-gcc"
 
 [target.aarch64-linux-android]
-linker = "aarch64-linux-android21-clang"
+linker = "aarch64-linux-android26-clang"
 rustflags = ["-C", "link-args=-Wl,-rpath,/data/data/com.termux/files/usr/lib"]
 
 [target.armv7-linux-androideabi]
-linker = "armv7a-linux-androideabi21-clang"
+linker = "armv7a-linux-androideabi26-clang"
 rustflags = ["-C", "link-args=-Wl,-rpath,/data/data/com.termux/files/usr/lib"]
 
 [target.i686-linux-android]
-linker = "i686-linux-android21-clang"
+linker = "i686-linux-android26-clang"
 rustflags = ["-C", "link-args=-Wl,-rpath,/data/data/com.termux/files/usr/lib"]
 
 [target.x86_64-linux-android]
-linker = "x86_64-linux-android21-clang"
+linker = "x86_64-linux-android26-clang"
 rustflags = ["-C", "link-args=-Wl,-rpath,/data/data/com.termux/files/usr/lib"]
