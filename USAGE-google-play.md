@@ -21,7 +21,7 @@ Available devices are specified [here](https://github.com/EFForg/rs-google-play/
 Likewise, a separate timezone or locale can also be specified:
 
 ```shell
-apkeep -a com.instagram.android -d google-play -o device=cloudbook,locale=es_MX -e 'someone@gmail.com' -t some_aas_token .
+apkeep -a com.instagram.android -d google-play -o device=ad_g3_pro,locale=es_MX -e 'someone@gmail.com' -t some_aas_token .
 ```
 
 This option attempts to download a split APK if available, and falls back to the full APK:
@@ -37,12 +37,12 @@ A full list of options:
 * `split_apk`: when set to `1` or `true`, attempts to download a [split APK](https://developer.android.com/studio/build/configure-apk-splits)
 * `include_additional_files`: when set to `1` or `true`, attempts to download any [additional `obb` expansion files](https://developer.android.com/google/play/expansion-files) for the app
 
-If you prefer not to provide your credentials on the command line, you can specify them in a config file named `apkeep.ini`.  This config file may have to be created, and must be located in the user config directory under the subpath `apkeep`.  Usually on Linux systems this will be `~/.config/apkeep/apkeep.ini`.  In this file specify your username and/or password:
+If you prefer not to provide your credentials on the command line, you can specify them in a config file named `apkeep.ini`.  This config file may have to be created, and must be located in the user config directory under the subpath `apkeep`.  Usually on Linux systems this will be `~/.config/apkeep/apkeep.ini`.  In this file specify your email and/or AAS token:
 
 ```ini
 [google]
 email = someone@gmail.com
-aas_token = somepass
+aas_token = some_aas_token
 ```
 
 Optionally, the path to this `ini` file can be specified:
