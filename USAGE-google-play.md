@@ -1,4 +1,14 @@
-To download directly from the Google Play Store, first you'll have to obtain an OAuth token by visiting the Google [embedded setup page](https://accounts.google.com/EmbeddedSetup/identifier?flowName=EmbeddedSetupAndroid) and opening the browser debugging console, logging in, and looking for the `oauth_token` cookie being set on your browser.  It will be present in the last requests being made and start with "oauth2_4/".  Copy this value.  It can only be used once, in order to obtain the AAS token which can be used subsequently.  To obtain this token:
+To download directly from the Google Play Store, first you'll have to obtain an OAuth token by visiting the Google [embedded setup page](https://accounts.google.com/EmbeddedSetup/identifier?flowName=EmbeddedSetupAndroid) and:
+
+- Opening the browser debugging console on `Network` tab
+- Logging in
+- If the "Google Terms of Services" pop up, click `I agree` (it can hang up on this step but it's not important)
+- Select the last request from `accounts.google.com` in the `Network` tab
+- Select the `Cookies` tab of this request
+- One of the response cookie is `oauth_token`
+- Copy the `value` field (it must start with `oauth2_4/`)
+
+It can only be used once, in order to obtain the AAS token which can be used subsequently. To obtain this token:
 
 ```shell
 apkeep -e 'someone@gmail.com' --oauth-token 'oauth2_4/...'
