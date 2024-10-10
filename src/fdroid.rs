@@ -14,7 +14,8 @@ use indicatif::MultiProgress;
 use regex::Regex;
 use ring::digest::{Context, SHA256};
 use serde_json::Value;
-use sha1::{Sha1, Digest};
+use sha1::{Sha1, Digest as Sha1Digest};
+use sha2::Sha256;
 use simple_error::SimpleError;
 use tempfile::{tempdir, TempDir};
 use tokio::time::{sleep, Duration};
@@ -38,6 +39,10 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
     let mut custom_repo = false;
     let mut repo = consts::FDROID_REPO.to_string();
     let mut fingerprint = Vec::from(consts::FDROID_INDEX_FINGERPRINT);
+    let use_entry = match options.get("use_entry") {
+        Some(val) if val == &"1" || val.to_lowercase() == "true" => true,
+        _ => false,
+    };
     if let Some(full_repo_option) = options.get("repo") {
         custom_repo = true;
         if let Some((repo_option, fingerprint_option)) = full_repo_option.split_once("?fingerprint=") {
@@ -76,12 +81,16 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
     }
 
     let mut latest_etag_file = PathBuf::from(&config_dir);
-    latest_etag_file.push("latest_etag");
+    if use_entry {
+        latest_etag_file.push("latest_entry_etag");
+    } else {
+        latest_etag_file.push("latest_etag");
+    }
     let latest_etag = match File::open(&latest_etag_file) {
         Ok(mut file) => {
             let mut contents = String::new();
             if file.read_to_string(&mut contents).is_err() {
-                println!("Could not read latest_etag file for F-Droid package index. Exiting.");
+                println!("Could not read etag file for F-Droid package index. Exiting.");
                 std::process::exit(1);
             }
             Some(contents)
@@ -90,36 +99,53 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
     };
 
     let http_client = reqwest::Client::new();
-    let fdroid_index_url = format!("{}/index-v1.jar", repo);
-    let index_response = http_client
-        .head(fdroid_index_url)
+    let fdroid_jar_url = if use_entry {
+        format!("{}/entry.jar", repo)
+    } else {
+        format!("{}/index-v1.jar", repo)
+    };
+    let jar_response = http_client
+        .head(fdroid_jar_url)
         .send().await.unwrap();
 
-    let etag = if index_response.headers().contains_key("ETag") {
-        index_response.headers()["ETag"].to_str().unwrap()
+    let etag = if jar_response.headers().contains_key("ETag") {
+        jar_response.headers()["ETag"].to_str().unwrap()
     } else {
         println!("Could not receive etag for F-Droid package index. Exiting.");
         std::process::exit(1);
     };
 
     let mut index_file = PathBuf::from(&config_dir);
-    index_file.push("index_v1.json");
+    if use_entry {
+        index_file.push("index.json");
+    } else {
+        index_file.push("index_v1.json");
+    }
     if latest_etag.is_some() && latest_etag.unwrap() == etag {
-        let index = {
-            let mut file = File::open(&index_file).unwrap();
-            let mut contents = String::new();
-            file.read_to_string(&mut contents).unwrap();
-            contents
-        };
+        let index = read_file_to_string(index_file);
         serde_json::from_str(&index).unwrap()
     } else {
-        let files = download_and_extract_index_to_tempdir(&temp_dir, &repo, mp).await;
+        let files = download_and_extract_to_tempdir(&temp_dir, &repo, Rc::clone(&mp), use_entry).await;
         let verify_index = match options.get("verify-index") {
             Some(&"false") => false,
             _ => true,
         };
-        match verify_and_return_index(&temp_dir, &files, &fingerprint, verify_index) {
-            Ok(index) => {
+        match verify_and_return_json(&temp_dir, &files, &fingerprint, verify_index, use_entry) {
+            Ok(json) => {
+                let index = if use_entry {
+                    match verify_and_return_index_from_entry(&temp_dir, &repo, &json, verify_index, mp).await {
+                        Ok(index_from_entry) => {
+                            index_from_entry
+                        }
+                        Err(_) => {
+                            println!("Could verify and return package index from entry JSON. Exiting.");
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    json
+                };
+
                 match serde_json::from_str(&index) {
                     Ok(index_value) => {
                         if fs::write(index_file, index).is_err() {
@@ -138,13 +164,19 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
                     }
                 }
             },
-            Err(err) => {
-                println!("{}", err);
+            Err(_) => {
                 println!("Could not verify F-Droid package index. Exiting.");
                 std::process::exit(1);
             },
         }
     }
+}
+
+fn read_file_to_string(file: PathBuf ) -> String {
+    let mut file = File::open(&file).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+    contents
 }
 
 pub async fn download_apps(
@@ -242,6 +274,10 @@ pub async fn download_apps(
 }
 
 type DownloadInformation = (Vec<(String, Option<String>, String, Vec<u8>)>, String);
+/// This currently works for `index-v1.json` as well as an index with version `20002`.  It is
+/// flexible enough to parse either, and may work on future index versions as well.  Since `sha256`
+/// digests are checked before proceeding, I don't foresee this having an insecure failure mode, so
+/// checking the index version and making the parsing overly brittle has no substantive advantage.
 fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>) -> Result<DownloadInformation, FDroidError> {
     let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
     let repo_address = index_map
@@ -255,40 +291,25 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
 
     let fdroid_apps: Vec<(String, Option<String>, String, Vec<u8>)> = apps.into_iter().map(|app| {
         let (app_id, app_version) = app;
-        if packages.contains_key(&app_id) {
-            let app_array_value = packages.get(&app_id).unwrap();
-            if app_array_value.is_array() {
-                let app_array = app_array_value.as_array().unwrap();
+        match packages.get(&app_id) {
+            Some(Value::Array(app_array)) => {
                 if app_version.is_none() {
                     if !app_array.is_empty() && app_array[0].is_object() {
                         let fdroid_app = app_array[0].as_object().unwrap();
-                        if fdroid_app.contains_key("apkName") && fdroid_app.contains_key("hash") {
-                            let filename_value = fdroid_app.get("apkName").unwrap();
-                            let hash_value = fdroid_app.get("hash").unwrap();
-                            if filename_value.is_string() && hash_value.is_string() {
-                                let filename = filename_value.as_str().unwrap().to_string();
-                                if let Ok(hash) = hex::decode(hash_value.as_str().unwrap().to_string()) {
-                                    return Some((app_id, app_version, filename, hash));
-                                }
+                        if let (Some(Value::String(filename)), Some(Value::String(hash))) = (fdroid_app.get("apkName"), fdroid_app.get("hash")) {
+                            if let Ok(hash) = hex::decode(hash.to_string()) {
+                                return Some((app_id, app_version, filename.to_string(), hash));
                             }
                         }
                     }
                 } else {
                     for single_app in app_array {
-                        if single_app.is_object() {
-                            let fdroid_app = single_app.as_object().unwrap();
-                            if fdroid_app.contains_key("versionName") {
-                                let version_name_value = fdroid_app.get("versionName").unwrap();
-                                if version_name_value.is_string() {
-                                    let version_name = version_name_value.as_str().unwrap().to_string();
-                                    if version_name == *app_version.as_ref().unwrap() && fdroid_app.contains_key("apkName") && fdroid_app.contains_key("hash") {
-                                        let filename_value = fdroid_app.get("apkName").unwrap();
-                                        let hash_value = fdroid_app.get("hash").unwrap();
-                                        if filename_value.is_string() && hash_value.is_string() {
-                                            let filename = filename_value.as_str().unwrap().to_string();
-                                            if let Ok(hash) = hex::decode(hash_value.as_str().unwrap().to_string()) {
-                                                return Some((app_id, app_version, filename, hash));
-                                            }
+                        if let Value::Object(fdroid_app) = single_app {
+                            if let Some(Value::String(version_name)) = fdroid_app.get("versionName") {
+                                if version_name == app_version.as_ref().unwrap() {
+                                    if let (Some(Value::String(filename)), Some(Value::String(hash))) = (fdroid_app.get("apkName"), fdroid_app.get("hash")) {
+                                        if let Ok(hash) = hex::decode(hash.to_string()) {
+                                            return Some((app_id, app_version, filename.to_string(), hash));
                                         }
                                     }
                                 }
@@ -298,9 +319,47 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
                     println!("Could not find version {} of {}. Skipping...", app_version.unwrap(), app_id);
                     return None;
                 }
-            }
-        } else {
-            println!("Could not find {} in package list. Skipping...", app_id);
+            },
+            Some(Value::Object(app_object)) => {
+                if let Some(Value::Object(versions)) = app_object.get("versions") {
+                    let mut latest_version = 0;
+                    let mut filename = String::new();
+                    let mut hash = String::new();
+                    for (_, version_value) in versions {
+                        if let Value::Object(version) = version_value {
+                            if let (Some(Value::Object(manifest)), Some(Value::Object(file))) = (version.get("manifest"), version.get("file")) {
+                                if let (Some(Value::String(name)), Some(Value::String(sha256))) = (file.get("name"), file.get("sha256")) {
+                                    if app_version.is_some() {
+                                        if let Some(Value::String(version_name)) = manifest.get("versionName") {
+                                            if version_name == app_version.as_ref().unwrap() {
+                                                if let Ok(sha256) = hex::decode(sha256.to_string()) {
+                                                    return Some((app_id, app_version, name.to_string(), sha256));
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        if let Some(Value::Number(version_code_number)) = manifest.get("versionCode") {
+                                            if let Some(version_code) = version_code_number.as_u64() {
+                                                if version_code > latest_version {
+                                                    latest_version = version_code;
+                                                    filename = name.to_string();
+                                                    hash = sha256.to_string();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if app_version.is_none() {
+                        if let Ok(hash) = hex::decode(hash) {
+                            return Some((app_id, app_version, filename, hash));
+                        }
+                    }
+                }
+            },
+            _ => println!("Could not find {} in package list. Skipping...", app_id),
         }
         None
     }).flatten().collect();
@@ -316,6 +375,7 @@ pub async fn list_versions(apps: Vec<(String, Option<String>)>, options: HashMap
     };
 }
 
+/// The comments for `parse_json_for_download_information` apply here, too.
 fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>) -> Result<(), FDroidError> {
     let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
 
@@ -326,35 +386,43 @@ fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>
     for app in apps {
         let (app_id, _) = app;
         println!("Versions available for {} on F-Droid:", app_id);
-        if packages.contains_key(&app_id) {
-            let app_array_value = packages.get(&app_id).unwrap();
-            if app_array_value.is_array() {
-                let app_array = app_array_value.as_array().unwrap();
-                let mut versions = HashSet::new();
+        let mut versions_set = HashSet::new();
+        match packages.get(&app_id) {
+            Some(Value::Array(app_array)) => {
                 for single_app in app_array {
-                    if single_app.is_object() {
-                        let fdroid_app = single_app.as_object().unwrap();
-                        if fdroid_app.contains_key("versionName") {
-                            let version_name_value = fdroid_app.get("versionName").unwrap();
-                            if version_name_value.is_string() {
-                                let version_name = version_name_value.as_str().unwrap().to_string();
-                                versions.insert(version_name);
+                    if let Value::Object(fdroid_app) = single_app {
+                        if let Some(Value::String(version_name)) = fdroid_app.get("versionName") {
+                            versions_set.insert(version_name.to_string());
+                        }
+                    }
+                }
+            },
+            Some(Value::Object(app_object)) => {
+                if let Some(Value::Object(versions)) = app_object.get("versions") {
+                    for (_, version_value) in versions {
+                        if let Value::Object(version) = version_value {
+                            if let Some(Value::Object(manifest)) = version.get("manifest") {
+                                if let Some(Value::String(version_name)) = manifest.get("versionName") {
+                                    versions_set.insert(version_name.to_string());
+                                }
                             }
                         }
                     }
                 }
-                let mut versions = versions.drain().collect::<Vec<String>>();
-                versions.sort();
-                println!("| {}", versions.join(", "));
+            },
+            _ => {
+                println!("| Could not find {} in package list. Skipping...", app_id);
+                continue;
             }
-        } else {
-            println!("| Could not find {} in package list. Skipping...", app_id);
         }
+        let mut versions_set = versions_set.drain().collect::<Vec<String>>();
+        versions_set.sort();
+        println!("| {}", versions_set.join(", "));
     }
     Ok(())
 }
 
-fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], verify_index: bool) -> Result<String, Box<dyn Error>> {
+fn verify_and_return_json(dir: &TempDir, files: &[String], fingerprint: &[u8], verify_index: bool, use_entry: bool) -> Result<String, Box<dyn Error>> {
     let re = Regex::new(consts::FDROID_SIGNATURE_BLOCK_FILE_REGEX).unwrap();
     let cert_file = {
         let mut cert_files = vec![];
@@ -391,7 +459,7 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
         context.update(&cert.encode_ber()?);
         let cert_fingerprint = context.finish();
         if cert_fingerprint.as_ref() != fingerprint {
-            return Err(Box::new(SimpleError::new("Fingerprint of the key contained in the F-Droid repository index does not match the expected fingerprint.")))
+            return Err(Box::new(SimpleError::new("Fingerprint of the key contained in the F-Droid repository does not match the expected fingerprint.")))
         };
     }
 
@@ -399,41 +467,125 @@ fn verify_and_return_index(dir: &TempDir, files: &[String], fingerprint: &[u8], 
     let manifest_file = dir.path().join("META-INF").join("MANIFEST.MF");
     let manifest_file_data = fs::read(manifest_file)?;
     if verify_index {
-        let signed_file_regex = Regex::new(r"\r\nSHA1-Digest-Manifest: (.*)\r\n").unwrap();
-        let signed_file_manifest_sha1sum = b64_general_purpose::STANDARD.decode(match signed_file_regex.captures(signed_file_string) {
+        let (signed_file_regex, sha_algorithm_name) = if use_entry {
+            (Regex::new(r"\r\nSHA-256-Digest-Manifest: (.*)\r\n").unwrap(), "sha256sum")
+        } else {
+            (Regex::new(r"\r\nSHA1-Digest-Manifest: (.*)\r\n").unwrap(), "sha1sum")
+        };
+        let signed_file_manifest_shasum = b64_general_purpose::STANDARD.decode(match signed_file_regex.captures(signed_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
             _ => {
-                return Err(Box::new(SimpleError::new("Could not retrieve the manifest sha1sum from the signed file.")));
+                return Err(Box::new(SimpleError::new(format!("Could not retrieve the manifest {} from the signed file.", sha_algorithm_name))));
             }
         })?;
-        let mut hasher = Sha1::new();
-        hasher.update(manifest_file_data.clone());
-        let actual_manifest_sha1sum = hasher.finalize();
-        if signed_file_manifest_sha1sum != actual_manifest_sha1sum[..] {
-            return Err(Box::new(SimpleError::new("The manifest sha1sum from the signed file does not match the actual manifest sha1sum.")));
+        let actual_manifest_shasum = if use_entry {
+            let mut hasher = Sha256::new();
+            hasher.update(manifest_file_data.clone());
+            Vec::from(hasher.finalize().as_slice())
+        } else {
+            let mut hasher = Sha1::new();
+            hasher.update(manifest_file_data.clone());
+            Vec::from(hasher.finalize().as_slice())
+        };
+        if signed_file_manifest_shasum != actual_manifest_shasum[..] {
+            return Err(Box::new(SimpleError::new(format!("The manifest {} from the signed file does not match the actual manifest {}.", sha_algorithm_name, sha_algorithm_name))));
         }
     }
 
     let manifest_file_string = std::str::from_utf8(&manifest_file_data)?;
-    let index_file = dir.path().join("index-v1.json");
-    let index_file_data = fs::read(index_file)?;
+    let json_file = if use_entry {
+        dir.path().join("entry.json")
+    } else {
+        dir.path().join("index-v1.json")
+    };
+    let json_file_data = fs::read(json_file)?;
     if verify_index {
-        let manifest_file_regex = Regex::new(r"\r\nName: index-v1\.json\r\nSHA1-Digest: (.*)\r\n").unwrap();
-        let manifest_file_index_sha1sum = b64_general_purpose::STANDARD.decode(match manifest_file_regex.captures(manifest_file_string) {
+        let (manifest_file_regex, file_algo) = if use_entry {
+            (Regex::new(r"\r\nName: entry\.json\r\nSHA-256-Digest: (.*)\r\n").unwrap(), "entry sha256sum")
+        } else {
+            (Regex::new(r"\r\nName: index-v1\.json\r\nSHA1-Digest: (.*)\r\n").unwrap(), "index sha1sum")
+        };
+        let manifest_file_shasum = b64_general_purpose::STANDARD.decode(match manifest_file_regex.captures(manifest_file_string) {
             Some(caps) if caps.len() >= 2 => caps.get(1).unwrap().as_str(),
             _ => {
-                return Err(Box::new(SimpleError::new("Could not retrieve the index sha1sum from the manifest file.")));
+                return Err(Box::new(SimpleError::new(format!("Could not retrieve the {} from the manifest file.", file_algo))));
             }
         })?;
-        let mut hasher = Sha1::new();
-        hasher.update(index_file_data.clone());
-        let actual_index_sha1sum = hasher.finalize();
-        if manifest_file_index_sha1sum != actual_index_sha1sum[..] {
-            return Err(Box::new(SimpleError::new("The index sha1sum from the manifest file does not match the actual index sha1sum.")));
+        let actual_shasum = if use_entry {
+            let mut hasher = Sha256::new();
+            hasher.update(json_file_data.clone());
+            Vec::from(hasher.finalize().as_slice())
+        } else {
+            let mut hasher = Sha1::new();
+            hasher.update(json_file_data.clone());
+            Vec::from(hasher.finalize().as_slice())
+        };
+        if manifest_file_shasum != actual_shasum[..] {
+            return Err(Box::new(SimpleError::new(format!("The {} from the manifest file does not match the actual {}.", file_algo, file_algo))));
         }
     }
 
-    Ok(String::from(std::str::from_utf8(&index_file_data)?))
+    Ok(String::from(std::str::from_utf8(&json_file_data)?))
+}
+
+async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &str, verify_index: bool, mp: Rc<MultiProgress>) -> Result<String, Box<dyn Error>> {
+    let mp_log = Rc::clone(&mp);
+    let (index_name, index_sha256) = match serde_json::from_str::<Value>(json) {
+        Ok(entry) => {
+            let entry_map = entry.as_object().ok_or(FDroidError::Dummy)?;
+            let index_map = entry_map
+                .get("index").ok_or(FDroidError::Dummy)?;
+            (index_map.get("name").ok_or(FDroidError::Dummy)?
+                .as_str().ok_or(FDroidError::Dummy)?.trim_start_matches("/").to_string(),
+            index_map.get("sha256").ok_or(FDroidError::Dummy)?
+                .as_str().ok_or(FDroidError::Dummy)?.to_string())
+        },
+        Err(_) => {
+            println!("Could not decode JSON for F-Droid entry file. Exiting.");
+            std::process::exit(1);
+        }
+    };
+    let index_url = format!("{}/{}", repo, index_name);
+    let mut dl = AsyncDownload::new(&index_url, dir.path(), &index_name).get().await.unwrap();
+    let length = dl.length();
+    let cb = match length {
+        Some(length) => Some(progress_wrapper(mp)(index_name.to_string(), length)),
+        None => None,
+    };
+    match dl.download(&cb).await {
+        Ok(_) => {
+            mp_log.println(format!("Package index downloaded successfully!")).unwrap();
+            let index_file = dir.path().join(index_name);
+            let index_file_data = fs::read(index_file)?;
+
+            if verify_index {
+                println!("Verifying...");
+                let actual_index_shasum = {
+                    let mut hasher = Sha256::new();
+                    hasher.update(index_file_data.clone());
+                    Vec::from(hasher.finalize().as_slice())
+                };
+                println!("{:?}", actual_index_shasum);
+                let index_sha256 = match hex::decode(index_sha256) {
+                    Ok(index_sha256) => index_sha256,
+                    Err(_) => {
+                        println!("Index sha256sum did not specify valid hex. Exiting.");
+                        std::process::exit(1);
+                    }
+                };
+                println!("{:?}", index_sha256);
+                if index_sha256 != actual_index_shasum {
+                    return Err(Box::new(SimpleError::new("The index sha256sum from the entry file does not match the actual index sha256sum.")));
+                }
+            }
+
+            Ok(String::from(std::str::from_utf8(&index_file_data)?))
+        }
+        Err(_) => {
+            println!("Could not download F-Droid package index. Exiting.");
+            std::process::exit(1);
+        }
+    }
 }
 
 fn get_signed_data_from_cert_file(signature_block_file: PathBuf) -> Result<SignedData, Box<dyn Error>> {
@@ -462,21 +614,26 @@ fn get_signed_data_from_cert_file(signature_block_file: PathBuf) -> Result<Signe
     }
 }
 
-async fn download_and_extract_index_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<MultiProgress>) -> Vec<String> {
+async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<MultiProgress>, use_entry: bool) -> Vec<String> {
     let mp_log = Rc::clone(&mp);
     println!("Downloading F-Droid package repository...");
     let mut files = vec![];
-    let fdroid_index_url = format!("{}/index-v1.jar", repo);
-    let mut dl = AsyncDownload::new(&fdroid_index_url, dir.path(), "index.zip").get().await.unwrap();
+    let fdroid_jar_url  = if use_entry {
+        format!("{}/entry.jar", repo)
+    } else {
+        format!("{}/index-v1.jar", repo)
+    };
+    let jar_local_file = "jar.zip";
+    let mut dl = AsyncDownload::new(&fdroid_jar_url, dir.path(), jar_local_file).get().await.unwrap();
     let length = dl.length();
     let cb = match length {
-        Some(length) => Some(progress_wrapper(mp)("index.zip".to_string(), length)),
+        Some(length) => Some(progress_wrapper(mp)(jar_local_file.to_string(), length)),
         None => None,
     };
     match dl.download(&cb).await {
         Ok(_) => {
             mp_log.println(format!("Package repository downloaded successfully!\nExtracting...")).unwrap();
-            let file = fs::File::open(dir.path().join("index.zip")).unwrap();
+            let file = fs::File::open(dir.path().join(jar_local_file)).unwrap();
             match zip::ZipArchive::new(file) {
                 Ok(mut archive) => {
                     for i in 0..archive.len() {
@@ -504,19 +661,19 @@ async fn download_and_extract_index_to_tempdir(dir: &TempDir, repo: &str, mp: Rc
                             use std::os::unix::fs::PermissionsExt;
 
                             if let Some(mode) = file.unix_mode() {
-                            fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
+                                fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
                             }
                         }
                     }
                 },
                 Err(_) => {
-                    println!("F-Droid package index could not be extracted. Please try again.");
+                    println!("F-Droid package repository could not be extracted. Please try again.");
                     std::process::exit(1);
                 }
             }
         }
         Err(_) => {
-            println!("Could not download F-Droid package index.");
+            println!("Could not download F-Droid package repository.");
             std::process::exit(1);
         }
     }
