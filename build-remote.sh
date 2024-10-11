@@ -29,9 +29,9 @@ export PKG_CONFIG_PATH="/usr/lib/aarch-linux-gnu-gcc/pkgconfig"
 cargo build --release --target=aarch64-unknown-linux-gnu
 
 cd ~
-wget https://www.openssl.org/source/openssl-3.2.1.tar.gz
-tar -zxvf openssl-3.2.1.tar.gz
-cd openssl-3.2.1
+wget https://www.openssl.org/source/openssl-3.3.2.tar.gz
+tar -zxvf openssl-3.3.2.tar.gz
+cd openssl-3.3.2
 wget https://raw.githubusercontent.com/EFForg/apkeep-files/main/Configurations-15-android.conf.patch
 patch -u Configurations/15-android.conf Configurations-15-android.conf.patch
 export OPENSSL_DIR=$PWD
@@ -51,28 +51,28 @@ ln -s armv7a-linux-androideabi26-clang arm-linux-androideabi-clang
 ln -s i686-linux-android26-clang i686-linux-android-clang
 
 cd $OPENSSL_DIR
-./Configure android-arm64 -D__ANDROID_API__=26
+./Configure android-arm64 -D__ANDROID_MIN_SDK_VERSION__=26
 make
 cd ../apkeep
 cargo build --release --target=aarch64-linux-android
 
 cd $OPENSSL_DIR
 make clean
-./Configure android-arm -D__ANDROID_API__=26
+./Configure android-arm -D__ANDROID_MIN_SDK_VERSION__=26
 make
 cd ../apkeep
 cargo build --release --target=armv7-linux-androideabi
 
 cd $OPENSSL_DIR
 make clean
-./Configure android-x86 -D__ANDROID_API__=26
+./Configure android-x86 -D__ANDROID_MIN_SDK_VERSION__=26
 make
 cd ../apkeep
 cargo build --release --target=i686-linux-android
 
 cd $OPENSSL_DIR
 make clean
-./Configure android-x86_64 -D__ANDROID_API__=26
+./Configure android-x86_64 -D__ANDROID_MIN_SDK_VERSION__=26
 make
 cd ../apkeep
 cargo build --release --target=x86_64-linux-android
@@ -84,13 +84,7 @@ sudo ln -s clang-16 /usr/bin/clang && sudo ln -s clang /usr/bin/clang++ && sudo 
 sudo ln -s clang-16 /usr/bin/clang-cl && sudo ln -s llvm-ar-16 /usr/bin/llvm-lib && sudo ln -s lld-link-16 /usr/bin/lld-link && sudo ln -s lld-link /usr/bin/link.exe
 
 cd ~
-wget https://github.com/EFForg/apkeep-files/raw/main/openssl-3.2.1-static-x86_64-pc-windows-msvc.tar.gz
-tar -zxvf openssl-3.2.1-static-x86_64-pc-windows-msvc.tar.gz
-cd openssl-3.2.1
-export OPENSSL_DIR=$PWD
-export OPENSSL_LIB_DIR=$PWD
-
-XWIN_VERSION="0.5.1"
+XWIN_VERSION="0.6.5"
 XWIN_PREFIX="xwin-$XWIN_VERSION-x86_64-unknown-linux-musl"
 curl --fail -L https://github.com/Jake-Shadle/xwin/releases/download/$XWIN_VERSION/$XWIN_PREFIX.tar.gz | tar -xzv -C ~/.cargo/bin --strip-components=1 $XWIN_PREFIX/xwin
 cd ~ && mkdir xwin
@@ -103,7 +97,6 @@ export CL_FLAGS="-Wno-unused-command-line-argument -fuse-ld=lld-link /imsvc$HOME
 export RUSTFLAGS="-Lnative=$HOME/xwin/crt/lib/x86_64 -Lnative=$HOME/xwin/sdk/lib/um/x86_64 -Lnative=$HOME/xwin/sdk/lib/ucrt/x86_64"
 export CFLAGS_x86_64_pc_windows_msvc="$CL_FLAGS"
 export CXXFLAGS_x86_64_pc_windows_msvc="$CL_FLAGS"
-export OPENSSL_STATIC=1
 
 cd ~/apkeep
 cargo build --release --target x86_64-pc-windows-msvc
