@@ -27,3 +27,9 @@ A special option can also be used to skip verification of the repository index. 
 ```shell
 apkeep -a org.torproject.android -d f-droid -o repo=https://guardianproject.info/fdroid/repo,verify-index=false .
 ```
+
+It is also possible to download a specific variant of an app with the `arch=` option:
+
+```shell
+apkeep -a org.videloan.vlc@3.5.4 -d f-droid -o arch=arm64-v8a .
+```
