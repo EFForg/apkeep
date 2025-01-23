@@ -190,7 +190,8 @@ pub async fn download_apps(
     let mp_index = Rc::clone(&mp);
     let index = retrieve_index_or_exit(&options, mp_index).await;
 
-    let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps) {
+    let app_arch = options.get("arch").map(|x| x.to_string());
+    let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps, app_arch.clone()) {
         Ok((fdroid_apps, repo_address)) => (fdroid_apps, repo_address),
         Err(_) => {
             println!("Could not parse JSON of F-Droid package index. Exiting.");
@@ -205,15 +206,24 @@ pub async fn download_apps(
             let repo_address = Rc::clone(&repo_address);
             let mp_log = Rc::clone(&mp);
             let mp = Rc::clone(&mp);
+            let app_arch = app_arch.clone();
             async move {
-                let app_string = match app_version {
-                    Some(ref version) => {
+                let app_string = match (app_version, app_arch) {
+                    (None, None) => {
+                        mp_log.println(format!("Downloading {}...", app_id)).unwrap();
+                        app_id.to_string()
+                    },
+                    (None, Some(arch)) => {
+                        mp_log.println(format!("Downloading {} arch {}...", app_id, arch)).unwrap();
+                        format!("{}@{}", app_id, arch)
+                    },
+                    (Some(version), None) => {
                         mp_log.println(format!("Downloading {} version {}...", app_id, version)).unwrap();
                         format!("{}@{}", app_id, version)
                     },
-                    None => {
-                        mp_log.println(format!("Downloading {}...", app_id)).unwrap();
-                        app_id.to_string()
+                    (Some(version), Some(arch)) => {
+                        mp_log.println(format!("Downloading {} version {} arch {}...", app_id, version, arch)).unwrap();
+                        format!("{}@{}@{}", app_id, version, arch)
                     },
                 };
                 let fname = format!("{}.apk", app_string);
@@ -278,7 +288,7 @@ type DownloadInformation = (Vec<(String, Option<String>, String, Vec<u8>)>, Stri
 /// flexible enough to parse either, and may work on future index versions as well.  Since `sha256`
 /// digests are checked before proceeding, I don't foresee this having an insecure failure mode, so
 /// checking the index version and making the parsing overly brittle has no substantive advantage.
-fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>) -> Result<DownloadInformation, FDroidError> {
+fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>, app_arch: Option<String>) -> Result<DownloadInformation, FDroidError> {
     let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
     let repo_address = index_map
         .get("repo").ok_or(FDroidError::Dummy)?
@@ -293,22 +303,25 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
         let (app_id, app_version) = app;
         match packages.get(&app_id) {
             Some(Value::Array(app_array)) => {
-                if app_version.is_none() {
-                    if !app_array.is_empty() && app_array[0].is_object() {
-                        let fdroid_app = app_array[0].as_object().unwrap();
-                        if let (Some(Value::String(filename)), Some(Value::String(hash))) = (fdroid_app.get("apkName"), fdroid_app.get("hash")) {
-                            if let Ok(hash) = hex::decode(hash.to_string()) {
-                                return Some((app_id, app_version, filename.to_string(), hash));
-                            }
-                        }
-                    }
-                } else {
-                    for single_app in app_array {
-                        if let Value::Object(fdroid_app) = single_app {
-                            if let Some(Value::String(version_name)) = fdroid_app.get("versionName") {
-                                if version_name == app_version.as_ref().unwrap() {
-                                    if let (Some(Value::String(filename)), Some(Value::String(hash))) = (fdroid_app.get("apkName"), fdroid_app.get("hash")) {
-                                        if let Ok(hash) = hex::decode(hash.to_string()) {
+                for single_app in app_array {
+                    if let Value::Object(fdroid_app) = single_app {
+                        if let Some(Value::String(version_name)) = fdroid_app.get("versionName") {
+                            if app_version.is_none() || version_name == app_version.as_ref().unwrap() {
+                                if let (Some(Value::String(filename)), Some(Value::String(hash))) = (fdroid_app.get("apkName"), fdroid_app.get("hash")) {
+                                    if let Ok(hash) = hex::decode(hash.to_string()) {
+                                        if let Some(arch) = &app_arch {
+                                            if let Some(Value::Array(nativecode_array)) = fdroid_app.get("nativecode") {
+                                                if nativecode_array.iter().any(|value| {
+                                                    if let Value::String(value_str) = value{
+                                                        value_str == arch
+                                                    } else {
+                                                        false
+                                                    }
+                                                }) {
+                                                    return Some((app_id, app_version, filename.to_string(), hash));
+                                                }
+                                            }
+                                        } else {
                                             return Some((app_id, app_version, filename.to_string(), hash));
                                         }
                                     }
@@ -316,9 +329,10 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
                             }
                         }
                     }
-                    println!("Could not find version {} of {}. Skipping...", app_version.unwrap(), app_id);
-                    return None;
                 }
+                let arch_str = app_arch.as_ref().map_or("".to_string(), |x| format!(" {}", x));
+                println!("Could not find version {}{} of {}. Skipping...", app_version.unwrap(), arch_str, app_id);
+                return None;
             },
             Some(Value::Object(app_object)) => {
                 if let Some(Value::Object(versions)) = app_object.get("versions") {
