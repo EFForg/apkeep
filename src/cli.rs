@@ -119,7 +119,7 @@ pub fn app() -> Command {
         )
         .arg(
             Arg::new("google_aas_token")
-                .help("Google aas token  (required if download source is Google Play)")
+                .help("Google aas token (required if download source is Google Play)")
                 .short('t')
                 .long("aas-token")
                 .action(ArgAction::Set)
@@ -155,5 +155,12 @@ pub fn app() -> Command {
                 .action(ArgAction::Set)
                 .index(1)
                 .required_unless_present("google_oauth_token"),
+        )
+        .arg(
+            Arg::new("xapk")
+                .help("Download a xapk file instead of an apk file. This only applies to APKPure and not all apps have a xapk available.")
+                .short('x')
+                .long("xapk")
+                .action(ArgAction::SetTrue)
         )
 }

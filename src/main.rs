@@ -299,7 +299,11 @@ async fn main() {
 
         match download_source {
             DownloadSource::APKPure => {
-                apkpure::download_apps(list, parallel, sleep_duration, &outpath.unwrap()).await;
+                if let Some(true) = matches.get_one::<bool>("xapk") {
+                    apkpure::download_apps(list, parallel, sleep_duration, &outpath.unwrap(), true).await;
+                } else {
+                    apkpure::download_apps(list, parallel, sleep_duration, &outpath.unwrap(), false).await;
+                }
             }
             DownloadSource::GooglePlay => {
                 let mut email = matches.get_one::<String>("google_email").map(|v| v.to_string());
