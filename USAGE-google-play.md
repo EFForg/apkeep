@@ -11,7 +11,7 @@ To download directly from the Google Play Store, first you'll have to obtain an 
 It can only be used once, in order to obtain the AAS token which can be used subsequently. To obtain this token:
 
 ```shell
-apkeep -e 'someone@gmail.com' --oauth-token 'oauth2_4/...'
+apkeep -e 'someone@gmail.com' --oauth-token oauth2_4/...
 ```
 
 An AAS token should be printed. You can use this to download an app:
