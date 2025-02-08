@@ -27,13 +27,15 @@ Options:
   -e, --email <google_email>
           Google account email address (required if download source is Google Play)
   -t, --aas-token <google_aas_token>
-          Google aas token  (required if download source is Google Play)
+          Google aas token (required if download source is Google Play)
       --accept-tos
           Accept Google Play Terms of Service
   -s, --sleep-duration <sleep_duration>
           Sleep duration (in ms) before download requests [default: 0]
   -r, --parallel <parallel>
           The number of parallel APK fetches to run at a time [default: 4]
+  -x, --xapk
+          Download a xapk file instead of an apk file. This only applies to APKPure and not all apps have a xapk available.
   -h, --help
           Print help
   -V, --version
