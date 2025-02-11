@@ -134,7 +134,7 @@ use cli::DownloadSource;
 
 mod config;
 mod consts;
-mod progress_bar;
+mod util;
 
 mod apkpure;
 mod fdroid;

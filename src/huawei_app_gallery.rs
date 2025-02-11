@@ -9,7 +9,7 @@ use serde_json::Value;
 use tokio_dl_stream_to_disk::{AsyncDownload, error::ErrorKind as TDSTDErrorKind};
 use tokio::time::{sleep, Duration as TokioDuration};
 
-use crate::progress_bar::progress_wrapper;
+use crate::util::progress_bar::progress_wrapper;
 
 fn http_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();

@@ -8,7 +8,7 @@ use gpapi::Gpapi;
 use indicatif::MultiProgress;
 use tokio::time::{sleep, Duration as TokioDuration};
 
-use crate::progress_bar::progress_wrapper;
+use crate::util::progress_bar::progress_wrapper;
 
 pub async fn download_apps(
     apps: Vec<(String, Option<String>)>,

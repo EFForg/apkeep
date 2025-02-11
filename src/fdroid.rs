@@ -24,7 +24,7 @@ use x509_certificate::certificate::CapturedX509Certificate;
 
 use crate::consts;
 use crate::config::{self, ConfigDirError};
-use crate::progress_bar::progress_wrapper;
+use crate::util::progress_bar::progress_wrapper;
 mod error;
 use error::Error as FDroidError;
 
