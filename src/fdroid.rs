@@ -13,7 +13,7 @@ use futures_util::StreamExt;
 use indicatif::MultiProgress;
 use regex::Regex;
 use ring::digest::{Context, SHA256};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sha1::{Sha1, Digest as Sha1Digest};
 use sha2::Sha256;
 use simple_error::SimpleError;
@@ -24,15 +24,15 @@ use x509_certificate::certificate::CapturedX509Certificate;
 
 use crate::consts;
 use crate::config::{self, ConfigDirError};
-use crate::util::progress_bar::progress_wrapper;
+use crate::util::{OutputFormat, progress_bar::progress_wrapper};
 mod error;
 use error::Error as FDroidError;
 
-async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgress>) -> Value {
+async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgress>, output_format: OutputFormat) -> Value {
     let temp_dir = match tempdir() {
         Ok(temp_dir) => temp_dir,
         Err(_) => {
-            println!("Could not create temporary directory for F-Droid package index. Exiting.");
+            print_error("Could not create temporary directory for F-Droid package index. Exiting.", output_format);
             std::process::exit(1);
         }
     };
@@ -49,7 +49,7 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
             fingerprint = match hex::decode(fingerprint_option) {
                 Ok(hex_fingerprint) => hex_fingerprint,
                 Err(_) => {
-                    println!("Fingerprint must be specified as valid hex. Exiting.");
+                    print_error("Fingerprint must be specified as valid hex. Exiting.", output_format);
                     std::process::exit(1);
                 }
             };
@@ -62,10 +62,10 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
     let display_error_and_exit = |err: ConfigDirError| {
         match err {
             ConfigDirError::NotFound => {
-                println!("Could not find a config directory for apkeep to store F-Droid package index. Exiting.");
+                print_error("Could not find a config directory for apkeep to store F-Droid package index. Exiting.", output_format.clone());
             },
             ConfigDirError::CouldNotCreate => {
-                println!("Could not create a config directory for apkeep to store F-Droid package index. Exiting.");
+                print_error("Could not create a config directory for apkeep to store F-Droid package index. Exiting.", output_format.clone());
             },
         }
         std::process::exit(1);
@@ -90,7 +90,7 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
         Ok(mut file) => {
             let mut contents = String::new();
             if file.read_to_string(&mut contents).is_err() {
-                println!("Could not read etag file for F-Droid package index. Exiting.");
+                print_error("Could not read etag file for F-Droid package index. Exiting.", output_format);
                 std::process::exit(1);
             }
             Some(contents)
@@ -111,7 +111,7 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
     let etag = if jar_response.headers().contains_key("ETag") {
         jar_response.headers()["ETag"].to_str().unwrap()
     } else {
-        println!("Could not receive etag for F-Droid package index. Exiting.");
+        print_error("Could not receive etag for F-Droid package index. Exiting.", output_format);
         std::process::exit(1);
     };
 
@@ -125,20 +125,20 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
         let index = read_file_to_string(index_file);
         serde_json::from_str(&index).unwrap()
     } else {
-        let files = download_and_extract_to_tempdir(&temp_dir, &repo, Rc::clone(&mp), use_entry).await;
+        let files = download_and_extract_to_tempdir(&temp_dir, &repo, Rc::clone(&mp), use_entry, output_format.clone()).await;
         let verify_index = match options.get("verify-index") {
             Some(&"false") => false,
             _ => true,
         };
-        match verify_and_return_json(&temp_dir, &files, &fingerprint, verify_index, use_entry) {
+        match verify_and_return_json(&temp_dir, &files, &fingerprint, verify_index, use_entry, Rc::clone(&mp)) {
             Ok(json) => {
                 let index = if use_entry {
-                    match verify_and_return_index_from_entry(&temp_dir, &repo, &json, verify_index, mp).await {
+                    match verify_and_return_index_from_entry(&temp_dir, &repo, &json, verify_index, mp, output_format.clone()).await {
                         Ok(index_from_entry) => {
                             index_from_entry
                         }
                         Err(_) => {
-                            println!("Could verify and return package index from entry JSON. Exiting.");
+                            print_error("Could verify and return package index from entry JSON. Exiting.", output_format);
                             std::process::exit(1);
                         }
                     }
@@ -149,26 +149,33 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
                 match serde_json::from_str(&index) {
                     Ok(index_value) => {
                         if fs::write(index_file, index).is_err() {
-                            println!("Could not write F-Droid package index to config file. Exiting.");
+                            print_error("Could not write F-Droid package index to config file. Exiting.", output_format);
                             std::process::exit(1);
                         }
                         if fs::write(latest_etag_file, etag).is_err() {
-                            println!("Could not write F-Droid etag to config file. Exiting.");
+                            print_error("Could not write F-Droid etag to config file. Exiting.", output_format);
                             std::process::exit(1);
                         }
                         index_value
                     }
                     Err(_) => {
-                        println!("Could not decode JSON for F-Droid package index. Exiting.");
+                        print_error("Could not decode JSON for F-Droid package index. Exiting.", output_format);
                         std::process::exit(1);
                     }
                 }
             },
             Err(_) => {
-                println!("Could not verify F-Droid package index. Exiting.");
+                print_error("Could not verify F-Droid package index. Exiting.", output_format);
                 std::process::exit(1);
             },
         }
+    }
+}
+
+fn print_error(err_msg: &str, output_format: OutputFormat) {
+    match output_format {
+        OutputFormat::Plaintext => println!("{}", err_msg),
+        OutputFormat::Json => println!("{{\"error\":\"{}\"}}", err_msg),
     }
 }
 
@@ -188,7 +195,7 @@ pub async fn download_apps(
 ) {
     let mp = Rc::new(MultiProgress::new());
     let mp_index = Rc::clone(&mp);
-    let index = retrieve_index_or_exit(&options, mp_index).await;
+    let index = retrieve_index_or_exit(&options, mp_index, OutputFormat::Plaintext).await;
 
     let app_arch = options.get("arch").map(|x| x.to_string());
     let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps, app_arch.clone()) {
@@ -383,23 +390,35 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
 
 pub async fn list_versions(apps: Vec<(String, Option<String>)>, options: HashMap<&str, &str>) {
     let mp = Rc::new(MultiProgress::new());
-    let index = retrieve_index_or_exit(&options, mp).await;
-    if parse_json_display_versions(index, apps).is_err() {
+    let output_format = match options.get("output_format") {
+        Some(val) if val.to_lowercase() == "json" => OutputFormat::Json,
+        _ => OutputFormat::Plaintext,
+    };
+    let index = retrieve_index_or_exit(&options, mp, output_format.clone()).await;
+
+    if parse_json_display_versions(index, apps, output_format).is_err() {
         println!("Could not parse JSON of F-Droid package index. Exiting.");
     };
 }
 
 /// The comments for `parse_json_for_download_information` apply here, too.
-fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>) -> Result<(), FDroidError> {
+fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>, output_format: OutputFormat) -> Result<(), FDroidError> {
     let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
 
     let packages = index_map
         .get("packages").ok_or(FDroidError::Dummy)?
         .as_object().ok_or(FDroidError::Dummy)?;
 
+    let mut json_root = match output_format {
+        OutputFormat::Json => Some(HashMap::new()),
+        _ => None,
+    };
+
     for app in apps {
         let (app_id, _) = app;
-        println!("Versions available for {} on F-Droid:", app_id);
+        if output_format.is_plaintext() {
+            println!("Versions available for {} on F-Droid:", app_id);
+        }
         let mut versions_set = HashSet::new();
         match packages.get(&app_id) {
             Some(Value::Array(app_array)) => {
@@ -425,18 +444,43 @@ fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>
                 }
             },
             _ => {
-                println!("| Could not find {} in package list. Skipping...", app_id);
+                match output_format {
+                    OutputFormat::Plaintext => {
+                        println!("| Could not find {} in package list. Skipping...", app_id);
+                    },
+                    OutputFormat::Json => {
+                        let mut app_root = HashMap::new();
+                        app_root.insert("error".to_string(), "Not found in package list.".to_string());
+                        json_root.as_mut().unwrap().insert(app_id.to_string(), json!(app_root));
+                    }
+                }
                 continue;
             }
         }
         let mut versions_set = versions_set.drain().collect::<Vec<String>>();
         versions_set.sort();
-        println!("| {}", versions_set.join(", "));
+        match output_format {
+            OutputFormat::Plaintext => {
+                println!("| {}", versions_set.join(", "));
+            },
+            OutputFormat::Json => {
+                let mut app_root: HashMap<String, Vec<HashMap<String, String>>> = HashMap::new();
+                app_root.insert("available_versions".to_string(), versions_set.into_iter().map(|v| {
+                    let mut version_map = HashMap::new();
+                    version_map.insert("version".to_string(), v);
+                    version_map
+                }).collect());
+                json_root.as_mut().unwrap().insert(app_id.to_string(), json!(app_root));
+            }
+        }
     }
+    if output_format.is_json() {
+        println!("{{\"source\":\"F-Droid\",\"apps\":{}}}", json!(json_root.unwrap()));
+    };
     Ok(())
 }
 
-fn verify_and_return_json(dir: &TempDir, files: &[String], fingerprint: &[u8], verify_index: bool, use_entry: bool) -> Result<String, Box<dyn Error>> {
+fn verify_and_return_json(dir: &TempDir, files: &[String], fingerprint: &[u8], verify_index: bool, use_entry: bool, mp: Rc<MultiProgress>) -> Result<String, Box<dyn Error>> {
     let re = Regex::new(consts::FDROID_SIGNATURE_BLOCK_FILE_REGEX).unwrap();
     let cert_file = {
         let mut cert_files = vec![];
@@ -462,7 +506,7 @@ fn verify_and_return_json(dir: &TempDir, files: &[String], fingerprint: &[u8], v
     let signed_content = fs::read(signed_file)?;
 
     if verify_index {
-        println!("Verifying...");
+        mp.println("Verifying...").unwrap();
         let signed_data = get_signed_data_from_cert_file(cert_file)?;
         let signer_info = signed_data.signers().next().unwrap();
         signer_info.verify_signature_with_signed_data_and_content(
@@ -542,7 +586,7 @@ fn verify_and_return_json(dir: &TempDir, files: &[String], fingerprint: &[u8], v
     Ok(String::from(std::str::from_utf8(&json_file_data)?))
 }
 
-async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &str, verify_index: bool, mp: Rc<MultiProgress>) -> Result<String, Box<dyn Error>> {
+async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &str, verify_index: bool, mp: Rc<MultiProgress>, output_format: OutputFormat) -> Result<String, Box<dyn Error>> {
     let mp_log = Rc::clone(&mp);
     let (index_name, index_sha256) = match serde_json::from_str::<Value>(json) {
         Ok(entry) => {
@@ -555,7 +599,7 @@ async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &st
                 .as_str().ok_or(FDroidError::Dummy)?.to_string())
         },
         Err(_) => {
-            println!("Could not decode JSON for F-Droid entry file. Exiting.");
+            print_error("Could not decode JSON for F-Droid entry file. Exiting.", output_format);
             std::process::exit(1);
         }
     };
@@ -573,21 +617,19 @@ async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &st
             let index_file_data = fs::read(index_file)?;
 
             if verify_index {
-                println!("Verifying...");
+                mp_log.println("Verifying...").unwrap();
                 let actual_index_shasum = {
                     let mut hasher = Sha256::new();
                     hasher.update(index_file_data.clone());
                     Vec::from(hasher.finalize().as_slice())
                 };
-                println!("{:?}", actual_index_shasum);
                 let index_sha256 = match hex::decode(index_sha256) {
                     Ok(index_sha256) => index_sha256,
                     Err(_) => {
-                        println!("Index sha256sum did not specify valid hex. Exiting.");
+                        print_error("Index sha256sum did not specify valid hex. Exiting.", output_format);
                         std::process::exit(1);
                     }
                 };
-                println!("{:?}", index_sha256);
                 if index_sha256 != actual_index_shasum {
                     return Err(Box::new(SimpleError::new("The index sha256sum from the entry file does not match the actual index sha256sum.")));
                 }
@@ -596,7 +638,7 @@ async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &st
             Ok(String::from(std::str::from_utf8(&index_file_data)?))
         }
         Err(_) => {
-            println!("Could not download F-Droid package index. Exiting.");
+            print_error("Could not download F-Droid package index. Exiting.", output_format);
             std::process::exit(1);
         }
     }
@@ -628,9 +670,9 @@ fn get_signed_data_from_cert_file(signature_block_file: PathBuf) -> Result<Signe
     }
 }
 
-async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<MultiProgress>, use_entry: bool) -> Vec<String> {
+async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<MultiProgress>, use_entry: bool, output_format: OutputFormat) -> Vec<String> {
     let mp_log = Rc::clone(&mp);
-    println!("Downloading F-Droid package repository...");
+    mp_log.println(format!("Downloading F-Droid package repository...")).unwrap();
     let mut files = vec![];
     let fdroid_jar_url  = if use_entry {
         format!("{}/entry.jar", repo)
@@ -681,13 +723,13 @@ async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<Multi
                     }
                 },
                 Err(_) => {
-                    println!("F-Droid package repository could not be extracted. Please try again.");
+                    print_error("F-Droid package repository could not be extracted. Please try again.", output_format);
                     std::process::exit(1);
                 }
             }
         }
         Err(_) => {
-            println!("Could not download F-Droid package repository.");
+            print_error("Could not download F-Droid package repository.", output_format);
             std::process::exit(1);
         }
     }

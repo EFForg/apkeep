@@ -154,6 +154,6 @@ pub fn app() -> Command {
                 .help("Path to store output files")
                 .action(ArgAction::Set)
                 .index(1)
-                .required_unless_present("google_oauth_token"),
+                .required_unless_present_any(["list_versions", "google_oauth_token"]),
         )
 }

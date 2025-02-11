@@ -33,3 +33,15 @@ It is also possible to download a specific architecture variant of an app with t
 ```shell
 apkeep -a org.videloan.vlc@3.5.4 -d f-droid -o arch=arm64-v8a .
 ```
+
+To list what versions are available, use `-l`:
+
+```shell
+apkeep -l -a org.mozilla.fennec_fdroid -d f-droid
+```
+
+To output the list in json, use the `output_format=json` option:
+
+```shell
+apkeep -l -a org.mozilla.fennec_fdroid -d f-droid -o output_format=json
+```

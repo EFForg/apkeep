@@ -264,7 +264,7 @@ async fn main() {
     if let Some(true) = matches.get_one::<bool>("list_versions") {
         match download_source {
             DownloadSource::APKPure => {
-                apkpure::list_versions(list).await;
+                apkpure::list_versions(list, options).await;
             }
             DownloadSource::GooglePlay => {
                 google_play::list_versions(list);

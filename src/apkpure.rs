@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::path::Path;
 use std::rc::Rc;
@@ -8,10 +9,11 @@ use indicatif::MultiProgress;
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Url, Response};
+use serde_json::json;
 use tokio_dl_stream_to_disk::{AsyncDownload, error::ErrorKind as TDSTDErrorKind};
 use tokio::time::{sleep, Duration as TokioDuration};
 
-use crate::util::progress_bar::progress_wrapper;
+use crate::util::{OutputFormat, progress_bar::progress_wrapper};
 
 fn http_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -140,17 +142,30 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
     }
 }
 
-pub async fn list_versions(apps: Vec<(String, Option<String>)>) {
+pub async fn list_versions(apps: Vec<(String, Option<String>)>, options: HashMap<&str, &str>) {
     let http_client = Rc::new(reqwest::Client::new());
     let re = Rc::new(Regex::new(r"([[:alnum:]\.-]+):\([[:xdigit:]]{40,}").unwrap());
     let headers = http_headers();
+    let output_format = match options.get("output_format") {
+        Some(val) if val.to_lowercase() == "json" => OutputFormat::Json,
+        _ => OutputFormat::Plaintext,
+    };
+    let json_root = Rc::new(RefCell::new(match output_format {
+        OutputFormat::Json => Some(HashMap::new()),
+        _ => None,
+    }));
+
     for app in apps {
         let (app_id, _) = app;
         let http_client = Rc::clone(&http_client);
         let re = Rc::clone(&re);
+        let json_root = Rc::clone(&json_root);
+        let output_format = output_format.clone();
         let headers = headers.clone();
         async move {
-            println!("Versions available for {} on APKPure:", app_id);
+            if output_format.is_plaintext() {
+                println!("Versions available for {} on APKPure:", app_id);
+            }
             let versions_url = Url::parse(&format!("{}{}", crate::consts::APKPURE_VERSIONS_URL_FORMAT, app_id)).unwrap();
             let versions_response = http_client
                 .get(versions_url)
@@ -168,12 +183,37 @@ pub async fn list_versions(apps: Vec<(String, Option<String>)>) {
                     }
                     let mut versions = versions.drain().collect::<Vec<String>>();
                     versions.sort();
-                    println!("| {}", versions.join(", "));
+                    match output_format {
+                        OutputFormat::Plaintext => {
+                            println!("| {}", versions.join(", "));
+                        },
+                        OutputFormat::Json => {
+                            let mut app_root: HashMap<String, Vec<HashMap<String, String>>> = HashMap::new();
+                            app_root.insert("available_versions".to_string(), versions.into_iter().map(|v| {
+                                let mut version_map = HashMap::new();
+                                version_map.insert("version".to_string(), v);
+                                version_map
+                            }).collect());
+                            json_root.borrow_mut().as_mut().unwrap().insert(app_id.to_string(), json!(app_root));
+                        },
+                    }
                 }
                 _ => {
-                    println!("| Invalid app response for {}. Skipping...", app_id);
+                    match output_format {
+                        OutputFormat::Plaintext => {
+                            println!("| Invalid app response for {}. Skipping...", app_id);
+                        },
+                        OutputFormat::Json => {
+                            let mut app_root = HashMap::new();
+                            app_root.insert("error".to_string(), "Invalid app response.".to_string());
+                            json_root.borrow_mut().as_mut().unwrap().insert(app_id.to_string(), json!(app_root));
+                        },
+                    }
                 }
             }
         }.await;
     }
+    if output_format.is_json() {
+        println!("{{\"source\":\"APKPure\",\"apps\":{}}}", json!(*json_root));
+    };
 }
