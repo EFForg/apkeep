@@ -174,7 +174,7 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
 
 fn print_error(err_msg: &str, output_format: OutputFormat) {
     match output_format {
-        OutputFormat::Plaintext => println!("{}", err_msg),
+        OutputFormat::Plaintext => eprintln!("{}", err_msg),
         OutputFormat::Json => println!("{{\"error\":\"{}\"}}", err_msg),
     }
 }
@@ -194,11 +194,10 @@ pub async fn download_apps(
     options: HashMap<&str, &str>,
 ) {
     let mp = Rc::new(MultiProgress::new());
-    let mp_index = Rc::clone(&mp);
-    let index = retrieve_index_or_exit(&options, mp_index, OutputFormat::Plaintext).await;
+    let index = retrieve_index_or_exit(&options, Rc::clone(&mp), OutputFormat::Plaintext).await;
 
     let app_arch = options.get("arch").map(|x| x.to_string());
-    let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps, app_arch.clone()) {
+    let (fdroid_apps, repo_address) = match parse_json_for_download_information(index, apps, app_arch.clone(), Rc::clone(&mp)) {
         Ok((fdroid_apps, repo_address)) => (fdroid_apps, repo_address),
         Err(_) => {
             println!("Could not parse JSON of F-Droid package index. Exiting.");
@@ -295,7 +294,7 @@ type DownloadInformation = (Vec<(String, Option<String>, String, Vec<u8>)>, Stri
 /// flexible enough to parse either, and may work on future index versions as well.  Since `sha256`
 /// digests are checked before proceeding, I don't foresee this having an insecure failure mode, so
 /// checking the index version and making the parsing overly brittle has no substantive advantage.
-fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>, app_arch: Option<String>) -> Result<DownloadInformation, FDroidError> {
+fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<String>)>, app_arch: Option<String>, mp_log: Rc<MultiProgress>) -> Result<DownloadInformation, FDroidError> {
     let index_map = index.as_object().ok_or(FDroidError::Dummy)?;
     let repo_address = index_map
         .get("repo").ok_or(FDroidError::Dummy)?
@@ -338,7 +337,7 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
                     }
                 }
                 let arch_str = app_arch.as_ref().map_or("".to_string(), |x| format!(" {}", x));
-                println!("Could not find version {}{} of {}. Skipping...", app_version.unwrap(), arch_str, app_id);
+                mp_log.println(format!("Could not find version {}{} of {}. Skipping...", app_version.unwrap(), arch_str, app_id)).unwrap();
                 return None;
             },
             Some(Value::Object(app_object)) => {
@@ -380,7 +379,7 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
                     }
                 }
             },
-            _ => println!("Could not find {} in package list. Skipping...", app_id),
+            _ => mp_log.println(format!("Could not find {} in package list. Skipping...", app_id)).unwrap(),
         }
         None
     }).flatten().collect();
@@ -446,7 +445,7 @@ fn parse_json_display_versions(index: Value, apps: Vec<(String, Option<String>)>
             _ => {
                 match output_format {
                     OutputFormat::Plaintext => {
-                        println!("| Could not find {} in package list. Skipping...", app_id);
+                        eprintln!("| Could not find {} in package list. Skipping...", app_id);
                     },
                     OutputFormat::Json => {
                         let mut app_root = HashMap::new();

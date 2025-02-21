@@ -201,7 +201,7 @@ pub async fn list_versions(apps: Vec<(String, Option<String>)>, options: HashMap
                 _ => {
                     match output_format {
                         OutputFormat::Plaintext => {
-                            println!("| Invalid app response for {}. Skipping...", app_id);
+                            eprintln!("| Invalid app response for {}. Skipping...", app_id);
                         },
                         OutputFormat::Json => {
                             let mut app_root = HashMap::new();
