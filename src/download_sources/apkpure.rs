@@ -49,11 +49,11 @@ pub async fn download_apps(
             async move {
                 let app_string = match app_version {
                     Some(ref version) => {
-                        mp_log.println(format!("Downloading {} version {}...", app_id, version)).unwrap();
+                        mp_log.suspend(|| println!("Downloading {} version {}...", app_id, version));
                         format!("{}@{}", app_id, version)
                     },
                     None => {
-                        mp_log.println(format!("Downloading {}...", app_id)).unwrap();
+                        mp_log.suspend(|| println!("Downloading {}...", app_id));
                         app_id.to_string()
                     },
                 };
@@ -101,7 +101,7 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
                             };
 
                             match dl.download(&cb).await {
-                                Ok(_) => mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap(),
+                                Ok(_) => mp_log.suspend(|| println!("{} downloaded successfully!", app_string)),
                                 Err(err) if matches!(err.kind(), TDSTDErrorKind::FileExists) => {
                                     mp_log.println(format!("File already exists for {}. Skipping...", app_string)).unwrap();
                                 },
@@ -111,11 +111,11 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
                                 Err(_) => {
                                     mp_log.println(format!("An error has occurred attempting to download {}.  Retry #1...", app_string)).unwrap();
                                     match AsyncDownload::new(download_url, Path::new(outpath), &fname).download(&cb).await {
-                                        Ok(_) => mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap(),
+                                        Ok(_) => mp_log.suspend(|| println!("{} downloaded successfully!", app_string)),
                                         Err(_) => {
                                             mp_log.println(format!("An error has occurred attempting to download {}.  Retry #2...", app_string)).unwrap();
                                             match AsyncDownload::new(download_url, Path::new(outpath), &fname).download(&cb).await {
-                                                Ok(_) => mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap(),
+                                                Ok(_) => mp_log.suspend(|| println!("{} downloaded successfully!", app_string)),
                                                 Err(_) => {
                                                     mp_log.println(format!("An error has occurred attempting to download {}. Skipping...", app_string)).unwrap();
                                                 }

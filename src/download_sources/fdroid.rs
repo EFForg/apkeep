@@ -216,19 +216,19 @@ pub async fn download_apps(
             async move {
                 let app_string = match (app_version, app_arch) {
                     (None, None) => {
-                        mp_log.println(format!("Downloading {}...", app_id)).unwrap();
+                        mp_log.suspend(|| println!("Downloading {}...", app_id));
                         app_id.to_string()
                     },
                     (None, Some(arch)) => {
-                        mp_log.println(format!("Downloading {} arch {}...", app_id, arch)).unwrap();
+                        mp_log.suspend(|| println!("Downloading {} arch {}...", app_id, arch));
                         format!("{}@{}", app_id, arch)
                     },
                     (Some(version), None) => {
-                        mp_log.println(format!("Downloading {} version {}...", app_id, version)).unwrap();
+                        mp_log.suspend(|| println!("Downloading {} version {}...", app_id, version));
                         format!("{}@{}", app_id, version)
                     },
                     (Some(version), Some(arch)) => {
-                        mp_log.println(format!("Downloading {} version {} arch {}...", app_id, version, arch)).unwrap();
+                        mp_log.suspend(|| println!("Downloading {} version {} arch {}...", app_id, version, arch));
                         format!("{}@{}@{}", app_id, version, arch)
                     },
                 };
@@ -274,9 +274,9 @@ pub async fn download_apps(
                         };
                         if let Some(sha256sum) = sha256sum {
                             if sha256sum == hash {
-                                mp_log.println(format!("{} downloaded successfully!", app_string)).unwrap();
+                                mp_log.suspend(|| println!("{} downloaded successfully!", app_string));
                             } else {
-                                mp_log.println(format!("{} downloaded, but the sha256sum does not match the one signed by F-Droid. Proceed with caution.", app_string)).unwrap();
+                                mp_log.suspend(|| println!("{} downloaded, but the sha256sum does not match the one signed by F-Droid. Proceed with caution.", app_string));
                             }
                         }
                     },
@@ -396,7 +396,8 @@ pub async fn list_versions(apps: Vec<(String, Option<String>)>, options: HashMap
     let index = retrieve_index_or_exit(&options, mp, output_format.clone()).await;
 
     if parse_json_display_versions(index, apps, output_format).is_err() {
-        println!("Could not parse JSON of F-Droid package index. Exiting.");
+        eprintln!("Could not parse JSON of F-Droid package index. Exiting.");
+        std::process::exit(1);
     };
 }
 
@@ -671,7 +672,7 @@ fn get_signed_data_from_cert_file(signature_block_file: PathBuf) -> Result<Signe
 
 async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<MultiProgress>, use_entry: bool, output_format: OutputFormat) -> Vec<String> {
     let mp_log = Rc::clone(&mp);
-    mp_log.println(format!("Downloading F-Droid package repository...")).unwrap();
+    mp_log.suspend(|| println!("Downloading F-Droid package repository..."));
     let mut files = vec![];
     let fdroid_jar_url  = if use_entry {
         format!("{}/entry.jar", repo)
@@ -687,7 +688,7 @@ async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<Multi
     };
     match dl.download(&cb).await {
         Ok(_) => {
-            mp_log.println(format!("Package repository downloaded successfully!\nExtracting...")).unwrap();
+            mp_log.suspend(|| println!("Package repository downloaded successfully!\nExtracting..."));
             let file = fs::File::open(dir.path().join(jar_local_file)).unwrap();
             match zip::ZipArchive::new(file) {
                 Ok(mut archive) => {
