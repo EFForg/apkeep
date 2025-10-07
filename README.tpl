@@ -4,7 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/apkeep.svg)](https://crates.io/crates/apkeep)
 [![MIT licensed](https://img.shields.io/crates/l/apkeep.svg)](./LICENSE)
 
-![apkeep logo](logo.png)
+![apkeep logo](logo.jpg)
 
 {{readme}}
 
