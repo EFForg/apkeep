@@ -16,10 +16,10 @@ In addition to specifying a mirror, a wholly separate F-Droid repo can be specif
 apkeep -a org.torproject.android -d f-droid -o repo=https://guardianproject.info/fdroid/repo?fingerprint=B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135 .
 ```
 
-If a repo supports the new [entry point specification](https://f-droid.org/docs/All_our_APIs/#the-repo-index), you can specify that be used instead of the older (v1) package index.  This may become the default behavior in the future, but can be specified by use of the `use_entry` option:
+If a repo only supports the old (v1) package index, the newer [entry point specification](https://f-droid.org/docs/All_our_APIs/#the-repo-index) can be disabled by use of the `use_entry` option:
 
 ```shell
-apkeep -a org.torproject.android -d f-droid -o repo=https://guardianproject.info/fdroid/repo?fingerprint=B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135,use_entry=true .
+apkeep -a org.torproject.android -d f-droid -o repo=https://guardianproject.info/fdroid/repo?fingerprint=B7C2EEFD8DAC7806AF67DFCD92EB18126BC08312A7F2D6F3862E46013C7A6135,use_entry=false .
 ```
 
 A special option can also be used to skip verification of the repository index.  *Only use for debugging purposes*:

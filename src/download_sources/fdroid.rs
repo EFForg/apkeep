@@ -40,8 +40,8 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
     let mut repo = consts::FDROID_REPO.to_string();
     let mut fingerprint = Vec::from(consts::FDROID_INDEX_FINGERPRINT);
     let use_entry = match options.get("use_entry") {
-        Some(val) if val == &"1" || val.to_lowercase() == "true" => true,
-        _ => false,
+        Some(val) if val == &"0" || val.to_lowercase() == "false" => false,
+        _ => true,
     };
     if let Some(full_repo_option) = options.get("repo") {
         custom_repo = true;

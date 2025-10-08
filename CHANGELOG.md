@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 - Adding the ability to specify json as an output format when listing versions of an app available
 - Using latest `gpapi` dependency, with more device configuration options for Google Play
+- For F-Droid, default the entry point specification to true, with the option to disable
 - Update dependencies
 
 ## [0.17.0] - 2024-10-11
