@@ -39,8 +39,11 @@
 //! apkeep -a com.instagram.android .
 //! ```
 //!
-//! This downloads from the default source, APKPure, which does not require credentials.  To
-//! download directly from the google play store, you will first have to [obtain an AAS token](USAGE-google-play.md).
+//! This downloads from the default source, APKPure, which does not require credentials. For more
+//! APKPure usage examples, such as specifying a package architecture, refer to the
+//! [`USAGE-apkpure.md`](USAGE-apkpure.md) document.
+//!
+//! To download directly from the google play store, you will first have to [obtain an AAS token](USAGE-google-play.md).
 //! Then,
 //!
 //! ```shell
@@ -300,7 +303,13 @@ async fn main() {
 
         match download_source {
             DownloadSource::APKPure => {
-                apkpure::download_apps(list, parallel, sleep_duration, &outpath.unwrap()).await;
+                apkpure::download_apps(
+                    list,
+                    parallel,
+                    sleep_duration,
+                    &outpath.unwrap(),
+                    options,
+                ).await;
             }
             DownloadSource::GooglePlay => {
                 let mut email = matches.get_one::<String>("google_email").map(|v| v.to_string());
