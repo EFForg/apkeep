@@ -20,7 +20,7 @@ An AAS token should be printed. You can use this to download an app:
 apkeep -a com.instagram.android -d google-play -e 'someone@gmail.com' -t some_aas_token .
 ```
 
-This will use a default device configuration of `px_7a`, a timezone of `UTC`, and a locale of `en_US`.  To specify a different device profile, use the `-o` option:
+This will use a default device configuration of `px_9a`, a timezone of `UTC`, and a locale of `en_US`.  To specify a different device profile, use the `-o` option:
 
 ```shell
 apkeep -a com.instagram.android -d google-play -o device=ad_g3_pro -e 'someone@gmail.com' -t some_aas_token .

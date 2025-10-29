@@ -128,7 +128,7 @@ pub async fn request_aas_token(
     oauth_token: &str,
     mut options: HashMap<&str, &str>,
 ) {
-    let device = options.remove("device").unwrap_or("px_7a");
+    let device = options.remove("device").unwrap_or("px_9a");
     let mut api = Gpapi::new(device, email);
     match api.request_aas_token(oauth_token).await {
         Ok(()) => {
