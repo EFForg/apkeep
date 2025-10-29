@@ -28,9 +28,3 @@ You can also list the versions available, either specifying a specific architect
 apkeep -l -a com.instagram.android -o 'arch=x86'
 apkeep -l -a com.instagram.android
 ```
-
-To specify a preferred language or Android API version, use the `language=` or `os_ver` options. The following shows the defaults:
-
-```shell
-apkeep -a com.instagram.android -o 'language=en-US,os_ver=35' .
-```
