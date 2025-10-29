@@ -20,7 +20,7 @@ pub async fn download_apps(
     accept_tos: bool,
     mut options: HashMap<&str, &str>,
 ) {
-    let device = options.remove("device").unwrap_or("px_7a");
+    let device = options.remove("device").unwrap_or("px_9a");
     let split_apk = match options.remove("split_apk") {
         Some(val) if val == "1" || val.to_lowercase() == "true" => true,
         _ => false,
