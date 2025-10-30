@@ -12,13 +12,13 @@ repository = "https://github.com/EFForg/apkeep"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["stream"] }
 futures-util = { version = "0.3", features = ["io"] }
-regex = "1.11"
+regex = "1.12"
 clap = { version = "4", features = ["derive"] }
 gpapi = "5"
 tokio-dl-stream-to-disk = { version = "1", features = ["sha256sum"] }
 tempfile = "3"
 dirs = "6"
-zip = "5"
+zip = "6"
 cryptographic-message-syntax = "0.28"
 ring = "0.17"
 x509-certificate = "0.25"
