@@ -125,6 +125,7 @@
 //! * Using Tor will make it a lot more likely that the download will fail.
 
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::{self, Write, Read};
@@ -221,7 +222,35 @@ async fn main() {
         None => HashMap::new()
     };
 
-    let oauth_token = matches.get_one::<String>("google_oauth_token").map(|v| v.to_string());
+    let mut email = matches.get_one::<String>("google_email").map(|v| v.to_string())
+        .or_else(|| env::var("APKEEP_GOOGLE_EMAIL").ok());
+    let mut aas_token = matches.get_one::<String>("google_aas_token").map(|v| v.to_string())
+        .or_else(|| env::var("APKEEP_GOOGLE_AAS_TOKEN").ok());
+
+    let ini_file = matches.get_one::<String>("ini").map(|ini_file| {
+        match fs::canonicalize(ini_file) {
+            Ok(ini_file) if Path::new(&ini_file).is_file() => {
+                ini_file
+            },
+            _ => {
+                println!("{}\n\nSpecified ini is not a valid file", usage);
+                std::process::exit(1);
+            },
+        }
+    });
+
+    if email.is_none() || aas_token.is_none() {
+        if let Ok(conf) = load_config(ini_file) {
+            if email.is_none() {
+                email = conf.get("google", "email");
+            }
+            if aas_token.is_none() {
+                aas_token = conf.get("google", "aas_token");
+            }
+        }
+    }
+
+    let mut oauth_token = matches.get_one::<String>("google_oauth_token").map(|v| v.to_string());
     if oauth_token.is_some() {
         download_source = DownloadSource::GooglePlay;
     }
@@ -312,7 +341,9 @@ async fn main() {
                 ).await;
             }
             DownloadSource::GooglePlay => {
-                let mut email = matches.get_one::<String>("google_email").map(|v| v.to_string());
+                if aas_token.is_none() && oauth_token.is_none() {
+                    oauth_token = env::var("APKEEP_GOOGLE_OAUTH_TOKEN").ok();
+                }
 
                 if email.is_some() && oauth_token.is_some() {
                     google_play::request_aas_token(
@@ -321,34 +352,10 @@ async fn main() {
                         options,
                     ).await;
                 } else {
-                    let mut aas_token = matches.get_one::<String>("google_aas_token").map(|v| v.to_string());
                     let accept_tos = match matches.get_one::<bool>("list_versions") {
                         Some(true) => true,
                         _ => false,
                     };
-
-                    let ini_file = matches.get_one::<String>("ini").map(|ini_file| {
-                        match fs::canonicalize(ini_file) {
-                            Ok(ini_file) if Path::new(&ini_file).is_file() => {
-                                ini_file
-                            },
-                            _ => {
-                                println!("{}\n\nSpecified ini is not a valid file", usage);
-                                std::process::exit(1);
-                            },
-                        }
-                    });
-
-                    if email.is_none() || aas_token.is_none() {
-                        if let Ok(conf) = load_config(ini_file) {
-                            if email.is_none() {
-                                email = conf.get("google", "email");
-                            }
-                            if aas_token.is_none() {
-                                aas_token = conf.get("google", "aas_token");
-                            }
-                        }
-                    }
 
                     if email.is_none() {
                         let mut prompt_email = String::new();
