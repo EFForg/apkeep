@@ -721,9 +721,9 @@ dependencies = [
 
 [[package]]
 name = "googleplay-protobuf"
-version = "2.2.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ead9bc1ee2fbe5c922e08261b87f6203089b760dc502f41df4552d96687033"
+checksum = "c33d138c3fe9de16e9f508956cee34615ad0c48c8d78d1eb33c64f992fd82817"
 dependencies = [
  "prost",
  "prost-build",
@@ -731,9 +731,9 @@ dependencies = [
 
 [[package]]
 name = "gpapi"
-version = "5.5.0"
+version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1c2db1964dcdd1f56a2fabeed9f8d04337e107bfcd5c221c6a43f81c8558ed8"
+checksum = "ad02728809a632b028abf8110313826e9c187648cedea466a4988dae7f3dae07"
 dependencies = [
  "bincode",
  "bytes",
