@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+- Add the ability to download dex metadata for an app from Google Play
+
 ## [0.18.0] - 2025-10-30
 - Adding the ability to specify json as an output format when listing versions of an app available
 - Using latest `gpapi` dependency, with more device configuration options for Google Play
