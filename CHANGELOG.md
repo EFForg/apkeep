@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 - Add the ability to download dex metadata for an app from Google Play
+- Added RuStore support
 
 ## [0.18.0] - 2025-10-30
 - Adding the ability to specify json as an output format when listing versions of an app available

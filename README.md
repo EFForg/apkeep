@@ -76,6 +76,12 @@ Or, to download from the Huawei AppGallery:
 apkeep -a com.elysiumlabs.newsbytes -d huawei-app-gallery .
 ```
 
+Or, to download from RuStore:
+
+```shell
+apkeep -a com.vk.calls -d ru-store .
+```
+
 To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
 convention:
 
@@ -117,6 +123,7 @@ You can use this tool to download from a few distinct sources.
 verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
 was downloaded but could not be verified
 * The Huawei AppGallery (`-d huawei-app-gallery`), an app store popular in China
+* RuStore (`-d ru-store`), a Russian app store platform
 
 ## Usage Note
 
