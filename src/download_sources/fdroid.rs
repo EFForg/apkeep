@@ -693,36 +693,41 @@ async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<Multi
             match zip::ZipArchive::new(file) {
                 Ok(mut archive) => {
                     for i in 0..archive.len() {
-                        let mut file = archive.by_index(i).unwrap();
+                        let mut file = match archive.by_index(i) {
+                            Ok(f) => f,
+                            Err(_) => continue,
+                        };
                         let outpath = match file.enclosed_name() {
                             Some(path) => dir.path().join(path.to_owned()),
                             None => continue,
                         };
-                        if (&*file.name()).ends_with('/') {
-                            fs::create_dir_all(&outpath).unwrap();
+                        if file.is_dir() {
+                            let _ = fs::create_dir_all(&outpath);
                         } else {
                             if let Some(p) = outpath.parent() {
-                                if !p.exists() {
-                                    fs::create_dir_all(&p).unwrap();
+                                let _ = fs::create_dir_all(&p);
+                            }
+                            if let Some(name) = file.enclosed_name() {
+                                if let Some(name_str) = name.to_owned().into_os_string().into_string().ok() {
+                                    files.push(name_str);
                                 }
                             }
-                            files.push(file.enclosed_name().unwrap().to_owned().into_os_string().into_string().unwrap());
-                            let mut outfile = fs::File::create(&outpath).unwrap();
-                            io::copy(&mut file, &mut outfile).unwrap();
+                            if let Ok(mut outfile) = fs::File::create(&outpath) {
+                                let _ = io::copy(&mut file, &mut outfile);
+                            }
                         }
 
-                        // Get and Set permissions
                         #[cfg(unix)]
                         {
                             use std::os::unix::fs::PermissionsExt;
-
                             if let Some(mode) = file.unix_mode() {
-                                fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
+                                let _ = fs::set_permissions(&outpath, fs::Permissions::from_mode(mode));
                             }
                         }
                     }
                 },
-                Err(_) => {
+                Err(e) => {
+                    mp_log.suspend(|| eprintln!("ZIP extraction error: {:?}", e));
                     print_error("F-Droid package repository could not be extracted. Please try again.", output_format);
                     std::process::exit(1);
                 }

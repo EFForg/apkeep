@@ -1,5 +1,8 @@
 pub mod progress_bar;
 
+#[allow(dead_code)]
+pub mod download_helper;
+
 #[derive(Clone)]
 pub enum OutputFormat {
     Json,
