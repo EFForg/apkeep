@@ -205,7 +205,15 @@ async fn main() {
     let matches = cli::app().get_matches();
 
     let mut download_source = *matches.get_one::<DownloadSource>("download_source").unwrap();
-    let options: HashMap<&str, &str> = match matches.get_one::<String>("options") {
+    
+    // Extract new CLI options as owned values first
+    let user_agent_opt = matches.get_one::<String>("user_agent").cloned();
+    let headers_opt = matches.get_one::<String>("headers").cloned();
+    let timeout_opt = matches.get_one::<u64>("timeout").cloned();
+    let verify_checksum = matches.get_flag("verify_checksum");
+    let skip_existing = matches.get_flag("skip_existing");
+    
+    let mut options: HashMap<&str, &str> = match matches.get_one::<String>("options") {
         Some(options) => {
             let mut options_map = HashMap::new();
             for option in options.split(",") {
@@ -220,6 +228,24 @@ async fn main() {
         },
         None => HashMap::new()
     };
+
+    // Add new CLI options to the options map using Box::leak for string lifetime
+    if let Some(user_agent) = user_agent_opt {
+        options.insert("user_agent", Box::leak(user_agent.into_boxed_str()));
+    }
+    if let Some(headers) = headers_opt {
+        options.insert("headers", Box::leak(headers.into_boxed_str()));
+    }
+    if let Some(timeout) = timeout_opt {
+        let timeout_str = timeout.to_string();
+        options.insert("timeout", Box::leak(timeout_str.into_boxed_str()));
+    }
+    if verify_checksum {
+        options.insert("verify_checksum", "true");
+    }
+    if skip_existing {
+        options.insert("skip_existing", "true");
+    }
 
     let oauth_token = matches.get_one::<String>("google_oauth_token").map(|v| v.to_string());
     if oauth_token.is_some() {

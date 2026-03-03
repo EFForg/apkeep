@@ -13,10 +13,15 @@ use serde_json::json;
 use tokio_dl_stream_to_disk::{AsyncDownload, error::ErrorKind as TDSTDErrorKind};
 use tokio::time::{sleep, Duration as TokioDuration};
 
-use crate::util::{OutputFormat, progress_bar::progress_wrapper};
+use crate::util::{OutputFormat, progress_bar::progress_wrapper, download_helper};
 
 fn http_headers(options: &HashMap<&str, &str>) -> HeaderMap {
-    let mut headers = HeaderMap::new();
+    let mut headers = download_helper::build_headers(
+        options.get("user_agent").cloned(),
+        options.get("headers").cloned(),
+    );
+    
+    // APKPure-specific headers
     headers.insert("x-cv", HeaderValue::from_static("3172501"));
     headers.insert("x-sv", HeaderValue::from_static("29"));
     let arch = match options.get("arch"){

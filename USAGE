@@ -1,4 +1,4 @@
-Downloads APKs from various sources
+Downloads APKs from various sources with integrity verification and metadata tracking
 
 Usage: apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH
 
@@ -34,6 +34,18 @@ Options:
           Sleep duration (in ms) before download requests [default: 0]
   -r, --parallel <parallel>
           The number of parallel APK fetches to run at a time [default: 4]
+      --user-agent <user_agent>
+          Custom User-Agent string to avoid bot detection (default: Chrome/Windows)
+      --headers <headers>
+          Custom HTTP headers for anti-blocking (format: 'Header1:Value1,Header2:Value2')
+      --timeout <timeout>
+          Request timeout in seconds [default: 300]
+      --verify
+          Verify APK integrity using SHA256 checksum after download
+      --save-metadata
+          Save download metadata (checksum, size, timestamp) as JSON
+      --skip-existing
+          Skip files that already exist instead of resuming download
   -h, --help
           Print help
   -V, --version
