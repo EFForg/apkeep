@@ -39,6 +39,28 @@ specific release version, the following floating tags are available:
 
 See [`USAGE`](https://github.com/EFForg/apkeep/blob/master/USAGE).
 
+### New Features
+
+**Enhanced Download Control:**
+- `--user-agent <agent>` - Custom User-Agent string to avoid bot detection
+- `--headers <headers>` - Custom HTTP headers (format: 'Header1:Value1,Header2:Value2')
+- `--timeout <seconds>` - Request timeout in seconds (default: 300)
+- `--verify` - Verify APK integrity using SHA256 checksum after download
+- `--save-metadata` - Save download metadata (checksum, size, timestamp) as JSON
+- `--skip-existing` - Skip files that already exist instead of resuming download
+
+**Example with new features:**
+```shell
+# Download with custom headers and verification
+apkeep -a com.instagram.android --user-agent "CustomBot/1.0" --verify .
+
+# Download with metadata tracking
+apkeep -a com.instagram.android --save-metadata .
+
+# Download with custom headers for anti-blocking
+apkeep -a com.instagram.android --headers "Accept:application/json,X-Custom:value" .
+```
+
 ## Examples
 
 The simplest example is to download a single APK to the current directory:
@@ -112,11 +134,20 @@ just treat it as a CSV with a single field.
 You can use this tool to download from a few distinct sources.
 
 * The Google Play Store (`-d google-play`), given an email address and AAS token
-* APKPure (`-d apk-pure`), a third-party site hosting APKs available on the Play Store
+* APKPure (`-d apk-pure`), a third-party site hosting APKs available on the Play Store (default)
 * F-Droid (`-d f-droid`), a repository for free and open-source Android apps. `apkeep`
 verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
 was downloaded but could not be verified
 * The Huawei AppGallery (`-d huawei-app-gallery`), an app store popular in China
+
+### Advanced Features
+
+**Download Helper Utilities:**
+- Automatic SHA256 checksum computation and verification
+- Download metadata tracking (app ID, version, file size, timestamp, source)
+- Resume support for interrupted downloads
+- Anti-bot detection with customizable headers and User-Agent
+- JSON metadata persistence alongside downloaded APKs
 
 ## Usage Note
 
