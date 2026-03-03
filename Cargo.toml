@@ -31,6 +31,7 @@ hex = "0.4"
 configparser = "3"
 serde = { version = "1", features = ["derive"] }
 indicatif = "0.18"
+chrono = "0.4"
 
 [build-dependencies]
 clap = { version = "4", features = ["derive"] }
