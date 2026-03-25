@@ -1,4 +1,8 @@
-To download directly from the Google Play Store, first you'll have to obtain an OAuth token by visiting the Google [embedded setup page](https://accounts.google.com/EmbeddedSetup) and:
+To download directly from the Google Play Store, you have two authentication options:
+
+## Option 1: Using OAuth Token (recommended for personal accounts)
+
+First, obtain an OAuth token by visiting the Google [embedded setup page](https://accounts.google.com/EmbeddedSetup) and:
 
 - Opening the browser debugging console on `Network` tab
 - Logging in
@@ -20,7 +24,19 @@ An AAS token should be printed. You can use this to download an app:
 apkeep -a com.instagram.android -d google-play -e 'someone@gmail.com' -t some_aas_token .
 ```
 
-This will use a default device configuration of `px_9a`, a timezone of `UTC`, and a locale of `en_US`.  To specify a different device profile, use the `-o` option:
+## Option 2: Using AUTH Token (for token dispensers)
+
+If you have an AUTH token from a token dispenser (e.g., Aurora Store's dispenser), you can use it directly with the `--auth-token` flag:
+
+```shell
+apkeep -a com.instagram.android -d google-play -e 'dispenser_email@gmail.com' --auth-token 'ya29.a0...' --accept-tos .
+```
+
+AUTH tokens typically start with `ya29.`. The `--accept-tos` flag is recommended for first-time use with a new account to automatically accept Google Play's Terms of Service.
+
+## Device Configuration
+
+Both options will use a default device configuration of `px_9a`, a timezone of `UTC`, and a locale of `en_US`. To specify a different device profile, use the `-o` option:
 
 ```shell
 apkeep -a com.instagram.android -d google-play -o device=ad_g3_pro -e 'someone@gmail.com' -t some_aas_token .
@@ -55,12 +71,14 @@ A full list of options:
 * `include_dex_metadata`: when set to `1` or `true`, attempts to download the DexMetadata (dm) file for an app, which contains the apps' cloud profile
 * `include_additional_files`: when set to `1` or `true`, attempts to download any [additional `obb` expansion files](https://developer.android.com/google/play/expansion-files) for the app
 
-If you prefer not to provide your credentials on the command line, you can specify them in a config file named `apkeep.ini`.  This config file may have to be created, and must be located in the user config directory under the subpath `apkeep`.  Usually on Linux systems this will be `~/.config/apkeep/apkeep.ini`.  In this file specify your email and/or AAS token:
+If you prefer not to provide your credentials on the command line, you can specify them in a config file named `apkeep.ini`. This config file may have to be created, and must be located in the user config directory under the subpath `apkeep`. Usually on Linux systems this will be `~/.config/apkeep/apkeep.ini`. In this file specify your email and token:
 
 ```ini
 [google]
 email = someone@gmail.com
 aas_token = some_aas_token
+# OR use auth_token instead of aas_token:
+# auth_token = ya29.a0...
 ```
 
 Optionally, the path to this `ini` file can be specified:

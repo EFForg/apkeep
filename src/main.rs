@@ -322,7 +322,8 @@ async fn main() {
                     ).await;
                 } else {
                     let mut aas_token = matches.get_one::<String>("google_aas_token").map(|v| v.to_string());
-                    let accept_tos = match matches.get_one::<bool>("list_versions") {
+                    let mut auth_token = matches.get_one::<String>("google_auth_token").map(|v| v.to_string());
+                    let accept_tos = match matches.get_one::<bool>("google_accept_tos") {
                         Some(true) => true,
                         _ => false,
                     };
@@ -339,13 +340,16 @@ async fn main() {
                         }
                     });
 
-                    if email.is_none() || aas_token.is_none() {
+                    if email.is_none() || (aas_token.is_none() && auth_token.is_none()) {
                         if let Ok(conf) = load_config(ini_file) {
                             if email.is_none() {
                                 email = conf.get("google", "email");
                             }
-                            if aas_token.is_none() {
+                            if aas_token.is_none() && auth_token.is_none() {
                                 aas_token = conf.get("google", "aas_token");
+                                if aas_token.is_none() {
+                                    auth_token = conf.get("google", "auth_token");
+                                }
                             }
                         }
                     }
@@ -358,12 +362,18 @@ async fn main() {
                         email = Some(prompt_email.trim().to_string());
                     }
 
-                    if aas_token.is_none() {
-                        let mut prompt_aas_token = String::new();
-                        print!("AAS Token: ");
+                    if aas_token.is_none() && auth_token.is_none() {
+                        let mut prompt_token = String::new();
+                        print!("AAS Token (or AUTH Token): ");
                         io::stdout().flush().unwrap();
-                        io::stdin().read_line(&mut prompt_aas_token).unwrap();
-                        aas_token = Some(prompt_aas_token.trim().to_string());
+                        io::stdin().read_line(&mut prompt_token).unwrap();
+                        let token = prompt_token.trim().to_string();
+                        // Heuristic: AUTH tokens typically start with "ya29."
+                        if token.starts_with("ya29.") {
+                            auth_token = Some(token);
+                        } else {
+                            aas_token = Some(token);
+                        }
                     }
 
                     google_play::download_apps(
@@ -371,7 +381,8 @@ async fn main() {
                         parallel,
                         sleep_duration,
                         &email.unwrap(),
-                        &aas_token.unwrap(),
+                        aas_token.as_deref(),
+                        auth_token.as_deref(),
                         &outpath.unwrap(),
                         accept_tos,
                         options,

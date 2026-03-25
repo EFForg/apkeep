@@ -28,6 +28,8 @@ Options:
           Google account email address (required if download source is Google Play)
   -t, --aas-token <google_aas_token>
           Google aas token  (required if download source is Google Play)
+      --auth-token <google_auth_token>
+          Google auth token (alternative to aas-token, e.g., from Aurora dispenser)
       --accept-tos
           Accept Google Play Terms of Service
   -s, --sleep-duration <sleep_duration>

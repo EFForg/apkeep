@@ -123,6 +123,14 @@ pub fn app() -> Command {
                 .short('t')
                 .long("aas-token")
                 .action(ArgAction::Set)
+                .conflicts_with("google_auth_token")
+        )
+        .arg(
+            Arg::new("google_auth_token")
+                .help("Google auth token (alternative to aas-token, e.g., from Aurora dispenser)")
+                .long("auth-token")
+                .action(ArgAction::Set)
+                .conflicts_with("google_aas_token")
         )
         .arg(
             Arg::new("google_accept_tos")

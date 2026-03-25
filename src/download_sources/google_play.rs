@@ -15,7 +15,8 @@ pub async fn download_apps(
     parallel: usize,
     sleep_duration: u64,
     email: &str,
-    aas_token: &str,
+    aas_token: Option<&str>,
+    auth_token: Option<&str>,
     outpath: &Path,
     accept_tos: bool,
     mut options: HashMap<&str, &str>,
@@ -42,21 +43,25 @@ pub async fn download_apps(
         gpa.set_timezone(timezone);
     }
 
-    gpa.set_aas_token(aas_token);
+    // Set the appropriate token type
+    if let Some(aas) = aas_token {
+        gpa.set_aas_token(aas);
+    } else if let Some(auth) = auth_token {
+        gpa.set_auth_token(auth);
+    } else {
+        eprintln!("Either AAS token or AUTH token must be provided");
+        std::process::exit(1);
+    }
     if let Err(err) = gpa.login().await {
         match err.kind() {
             GpapiErrorKind::TermsOfService => {
                 if accept_tos {
                     match gpa.accept_tos().await {
                         Ok(_) => {
-                            if let Err(_) = gpa.login().await {
-                                eprintln!("Could not log in, even after accepting the Google Play Terms of Service");
-                                std::process::exit(1);
-                            }
                             println!("Google Play Terms of Service accepted.");
                         },
-                        _ => {
-                            eprintln!("Could not accept Google Play Terms of Service");
+                        Err(e) => {
+                            eprintln!("Could not accept Google Play Terms of Service: {}", e);
                             std::process::exit(1);
                         },
                     }
