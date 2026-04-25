@@ -6,6 +6,7 @@ pub enum DownloadSource {
     GooglePlay,
     FDroid,
     HuaweiAppGallery,
+    RuStore,
 }
 
 impl std::fmt::Display for DownloadSource {

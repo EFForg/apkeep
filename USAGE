@@ -17,7 +17,7 @@ Options:
   -l, --list-versions
           List the versions available
   -d, --download-source <download_source>
-          Where to download the APKs from [default: apk-pure] [possible values: apk-pure, google-play, f-droid, huawei-app-gallery]
+          Where to download the APKs from [default: apk-pure] [possible values: apk-pure, google-play, f-droid, huawei-app-gallery, ru-store]
   -o, --options <options>
           A comma-separated list of additional options to pass to the download source
   -i, --ini <ini>

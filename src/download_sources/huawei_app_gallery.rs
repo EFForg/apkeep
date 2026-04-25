@@ -73,7 +73,7 @@ async fn download_from_response(response: Response, app_string: String, outpath:
                     let list_value = response_obj.get("list").unwrap();
                     if list_value.is_array() {
                         let list = list_value.as_array().unwrap();
-                        if !list.is_empty() && list[0].is_object(){
+                        if !list.is_empty() && list[0].is_object() {
                             let first_list_entry = list[0].as_object().unwrap();
                             if first_list_entry.contains_key("downurl") {
                                 let downurl = first_list_entry.get("downurl").unwrap();
@@ -118,6 +118,8 @@ async fn download_from_response(response: Response, app_string: String, outpath:
                                     }
                                 }
                             }
+                        } else {
+                            mp_log.println(format!("App not found on Huawei AppGallery: {}. Skipping...", app_string)).unwrap();
                         }
                     }
                 }
