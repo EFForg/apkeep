@@ -11,6 +11,8 @@
 Precompiled binaries for `apkeep` on various platforms can be downloaded
 [here](https://github.com/EFForg/apkeep/releases).
 
+### Cargo
+
 To install from `crates.io`, simply [install rust](https://www.rust-lang.org/tools/install) and
 run
 
@@ -22,6 +24,13 @@ Or to install from the latest commit in our repository, run
 
 ```shell
 cargo install --git https://github.com/EFForg/apkeep.git
+```
+### Homebrew
+
+To install from Homebrew, run
+
+```shell
+brew install apkeep
 ```
 
 If using on an Android platform, [`termux`](https://termux.org/) must be installed first.
