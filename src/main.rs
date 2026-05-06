@@ -123,3 +123,284 @@
 //! * Google may terminate your Google account for Terms of Service violations. Read their [Terms of Service](https://play.google.com/about/play-terms/index.html), avoid violating it, and choose an account where this outcome is acceptable.
 //! * The tool cannot download paid or DRM apps.
 //! * Using Tor will make downloads far more likely to fail.
+
+use std::collections::HashMap;
+use std::error::Error;
+use std::fs::{self, File};
+use std::io::{self, Write, Read};
+use std::path::{Path, PathBuf};
+
+use configparser::ini::Ini;
+
+mod cli;
+use cli::DownloadSource;
+
+mod config;
+mod consts;
+mod util;
+
+mod download_sources;
+use download_sources::google_play;
+use download_sources::fdroid;
+use download_sources::apkpure;
+use download_sources::huawei_app_gallery;
+
+type CSVList = Vec<(String, Option<String>)>;
+fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Result<CSVList, Box<dyn Error>> {
+    Ok(parse_csv_text(fs::read_to_string(csv)?, field, version_field))
+}
+
+fn parse_csv_text(text: String, field: usize, version_field: Option<usize>) -> Vec<(String, Option<String>)> {
+    let field = field - 1;
+    let version_field = version_field.map(|version_field| version_field - 1);
+    text.split('\n')
+        .filter_map(|l| {
+            let entry = l.trim();
+            let mut entry_vec = entry.split(',').collect::<Vec<&str>>();
+            if entry_vec.len() > field && !(entry_vec.len() == 1 && entry_vec[0].is_empty()) {
+                match version_field {
+                    Some(mut version_field) if entry_vec.len() > version_field => {
+                        if version_field > field {
+                            version_field -= 1;
+                        }
+                        let app_id = String::from(entry_vec.remove(field));
+                        let app_version = String::from(entry_vec.remove(version_field));
+                        if !app_version.is_empty() {
+                            Some((app_id, Some(app_version)))
+                        } else {
+                            Some((app_id, None))
+                        }
+                    },
+                    _ => Some((String::from(entry_vec.remove(field)), None)),
+                }
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn load_config(ini_file: Option<PathBuf>) -> Result<Ini, Box<dyn Error>> {
+    let mut conf = Ini::new();
+    let config_path = match ini_file {
+        Some(ini_file) => ini_file,
+        None => {
+            let mut config_path = config::config_dir()?;
+            config_path.push("apkeep.ini");
+            config_path
+        }
+    };
+    let mut config_fp = File::open(&config_path)?;
+    let mut contents = String::new();
+    config_fp.read_to_string(&mut contents)?;
+    conf.read(contents)?;
+    Ok(conf)
+}
+
+#[tokio::main]
+async fn main() {
+    let usage = {
+        cli::app().render_usage()
+    };
+    let matches = cli::app().get_matches();
+
+    let mut download_source = *matches.get_one::<DownloadSource>("download_source").unwrap();
+    let options: HashMap<&str, &str> = match matches.get_one::<String>("options") {
+        Some(options) => {
+            let mut options_map = HashMap::new();
+            for option in options.split(",") {
+                match option.split_once("=") {
+                    Some((key, value)) => {
+                        options_map.insert(key, value);
+                    },
+                    None => {}
+                }
+            }
+            options_map
+        },
+        None => HashMap::new()
+    };
+
+    let oauth_token = matches.get_one::<String>("google_oauth_token").map(|v| v.to_string());
+    if oauth_token.is_some() {
+        download_source = DownloadSource::GooglePlay;
+    }
+    let list: Vec<(String, Option<String>)> = if oauth_token.is_none() {
+        match matches.get_one::<String>("app") {
+            Some(app) => {
+                let mut app_vec: Vec<String> = app.splitn(2, '@').map(String::from).collect();
+                let app_id = app_vec.remove(0);
+                let app_version = match app_vec.len() {
+                    1 => Some(app_vec.remove(0)),
+                    _ => None,
+                };
+                vec![(app_id, app_version)]
+            },
+            None => {
+                let csv = matches.get_one::<String>("csv").unwrap();
+                let field = *matches.get_one::<usize>("field").unwrap();
+                let version_field = matches.get_one::<usize>("version_field").map(|v| *v);
+                if field < 1 {
+                    println!("{}\n\nApp ID field must be 1 or greater", usage);
+                    std::process::exit(1);
+                }
+                if let Some(version_field) = version_field {
+                    if version_field < 1 {
+                        println!("{}\n\nVersion field must be 1 or greater", usage);
+                        std::process::exit(1);
+                    }
+                    if field == version_field {
+                        println!("{}\n\nApp ID and Version fields must be different", usage);
+                        std::process::exit(1);
+                    }
+                }
+                match fetch_csv_list(csv, field, version_field) {
+                    Ok(csv_list) => csv_list,
+                    Err(err) => {
+                        println!("{}\n\n{:?}", usage, err);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+    } else { Vec::new() };
+
+    if let Some(true) = matches.get_one::<bool>("list_versions") {
+        match download_source {
+            DownloadSource::APKPure => {
+                apkpure::list_versions(list, options).await;
+            }
+            DownloadSource::GooglePlay => {
+                google_play::list_versions(list);
+            }
+            DownloadSource::FDroid => {
+                fdroid::list_versions(list, options).await;
+            }
+            DownloadSource::HuaweiAppGallery => {
+                huawei_app_gallery::list_versions(list).await;
+            }
+        }
+    } else {
+        let parallel = matches.get_one::<usize>("parallel").map(|v| *v).unwrap();
+        let sleep_duration = matches.get_one::<u64>("sleep_duration").map(|v| *v).unwrap();
+        let outpath = matches.get_one::<String>("OUTPATH").map_or_else(|| {
+            if oauth_token.is_none() {
+                println!("{}\n\nOUTPATH must be specified when downloading files", usage);
+                std::process::exit(1);
+            }
+            None
+        }, |outpath| {
+            match fs::canonicalize(outpath) {
+                Ok(outpath) if Path::new(&outpath).is_dir() => {
+                    Some(outpath)
+                },
+                _ => {
+                    println!("{}\n\nOUTPATH is not a valid directory", usage);
+                    std::process::exit(1);
+                }
+            }
+        });
+
+        match download_source {
+            DownloadSource::APKPure => {
+                apkpure::download_apps(
+                    list,
+                    parallel,
+                    sleep_duration,
+                    &outpath.unwrap(),
+                    options,
+                ).await;
+            }
+            DownloadSource::GooglePlay => {
+                let mut email = matches.get_one::<String>("google_email").map(|v| v.to_string());
+
+                if email.is_some() && oauth_token.is_some() {
+                    google_play::request_aas_token(
+                        &email.unwrap(),
+                        &oauth_token.unwrap(),
+                        options,
+                    ).await;
+                } else {
+                    let mut aas_token = matches.get_one::<String>("google_aas_token").map(|v| v.to_string());
+                    let mut auth_token = matches.get_one::<String>("google_auth_token").map(|v| v.to_string());
+                    let accept_tos = match matches.get_one::<bool>("google_accept_tos") {
+                        Some(true) => true,
+                        _ => false,
+                    };
+
+                    let ini_file = matches.get_one::<String>("ini").map(|ini_file| {
+                        match fs::canonicalize(ini_file) {
+                            Ok(ini_file) if Path::new(&ini_file).is_file() => {
+                                ini_file
+                            },
+                            _ => {
+                                println!("{}\n\nSpecified ini is not a valid file", usage);
+                                std::process::exit(1);
+                            },
+                        }
+                    });
+
+                    if email.is_none() || (aas_token.is_none() && auth_token.is_none()) {
+                        if let Ok(conf) = load_config(ini_file) {
+                            if email.is_none() {
+                                email = conf.get("google", "email");
+                            }
+                            if aas_token.is_none() && auth_token.is_none() {
+                                aas_token = conf.get("google", "aas_token");
+                                if aas_token.is_none() {
+                                    auth_token = conf.get("google", "auth_token");
+                                }
+                            }
+                        }
+                    }
+
+                    if email.is_none() {
+                        let mut prompt_email = String::new();
+                        print!("Email: ");
+                        io::stdout().flush().unwrap();
+                        io::stdin().read_line(&mut prompt_email).unwrap();
+                        email = Some(prompt_email.trim().to_string());
+                    }
+
+                    if aas_token.is_none() && auth_token.is_none() {
+                        let mut prompt_token = String::new();
+                        print!("AAS Token (or AUTH Token): ");
+                        io::stdout().flush().unwrap();
+                        io::stdin().read_line(&mut prompt_token).unwrap();
+                        let token = prompt_token.trim().to_string();
+                        // Heuristic: AUTH tokens typically start with "ya29."
+                        if token.starts_with("ya29.") {
+                            auth_token = Some(token);
+                        } else {
+                            aas_token = Some(token);
+                        }
+                    }
+
+                    google_play::download_apps(
+                        list,
+                        parallel,
+                        sleep_duration,
+                        &email.unwrap(),
+                        aas_token.as_deref(),
+                        auth_token.as_deref(),
+                        &outpath.unwrap(),
+                        accept_tos,
+                        options,
+                    )
+                    .await;
+                }
+            }
+            DownloadSource::FDroid => {
+                fdroid::download_apps(list,
+                    parallel,
+                    sleep_duration,
+                    &outpath.unwrap(),
+                    options,
+                ).await;
+            }
+            DownloadSource::HuaweiAppGallery => {
+                huawei_app_gallery::download_apps(list, parallel, sleep_duration, &outpath.unwrap()).await;
+            }
+        }
+    }
+}
