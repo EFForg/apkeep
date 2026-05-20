@@ -34,7 +34,7 @@ pub fn app() -> Command {
     Command::new("apkeep")
         .version(env!("CARGO_PKG_VERSION"))
         .author("William Budington <bill@eff.org>")
-        .about("Downloads APKs from various sources")
+        .about("Downloads APKs from various sources with integrity verification and metadata tracking")
         .override_usage("apkeep <-a app_id[@version] | -c csv [-f field] [-v version_field]> [-d download_source] [-r parallel] OUTPATH")
         .arg(
             Arg::new("app")
@@ -155,6 +155,50 @@ pub fn app() -> Command {
                 .action(ArgAction::Set)
                 .value_parser(value_parser!(usize))
                 .default_value("4")
+                .required(false),
+        )
+        .arg(
+            Arg::new("user_agent")
+                .help("Custom User-Agent string to avoid bot detection (default: Chrome/Windows)")
+                .long("user-agent")
+                .action(ArgAction::Set)
+                .required(false),
+        )
+        .arg(
+            Arg::new("headers")
+                .help("Custom HTTP headers for anti-blocking (format: 'Header1:Value1,Header2:Value2')")
+                .long("headers")
+                .action(ArgAction::Set)
+                .required(false),
+        )
+        .arg(
+            Arg::new("timeout")
+                .help("Request timeout in seconds")
+                .long("timeout")
+                .action(ArgAction::Set)
+                .value_parser(value_parser!(u64))
+                .default_value("300")
+                .required(false),
+        )
+        .arg(
+            Arg::new("verify_checksum")
+                .help("Verify APK integrity using SHA256 checksum after download")
+                .long("verify")
+                .action(ArgAction::SetTrue)
+                .required(false),
+        )
+        .arg(
+            Arg::new("save_metadata")
+                .help("Save download metadata (checksum, size, timestamp) as JSON")
+                .long("save-metadata")
+                .action(ArgAction::SetTrue)
+                .required(false),
+        )
+        .arg(
+            Arg::new("skip_existing")
+                .help("Skip files that already exist instead of resuming download")
+                .long("skip-existing")
+                .action(ArgAction::SetTrue)
                 .required(false),
         )
         .arg(
