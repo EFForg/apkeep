@@ -1,0 +1,6 @@
+email,token,token_type,device_properties_path,locale
+# One row per phone/account. token_type is "aas" (default) or "auth".
+# device_properties_path may be blank to use apkeep's built-in default device.
+phone1@gmail.com,ya29.aas_token_here,aas,./devices/phone1.properties,us
+phone2@gmail.com,ya29.a0Ae...auth_token_here,auth,./devices/phone2.properties,at
+phone3@gmail.com,another_aas_token,aas,,us

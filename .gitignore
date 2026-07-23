@@ -1,2 +1,11 @@
 *.swp
 /target
+
+# farm: real credentials and generated state (never commit)
+accounts.csv
+farm/accounts.csv
+farm/queue.db
+farm/logs/
+farm/out/
+farm/devices/
+farm/__pycache__/
