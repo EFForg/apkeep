@@ -376,7 +376,7 @@ async fn main() {
                         }
                     }
 
-                    google_play::download_apps(
+                    let failures = google_play::download_apps(
                         list,
                         parallel,
                         sleep_duration,
@@ -388,6 +388,10 @@ async fn main() {
                         options,
                     )
                     .await;
+                    if failures > 0 {
+                        eprintln!("{} app(s) could not be downloaded.", failures);
+                        std::process::exit(1);
+                    }
                 }
             }
             DownloadSource::FDroid => {

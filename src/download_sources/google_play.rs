@@ -20,7 +20,7 @@ pub async fn download_apps(
     outpath: &Path,
     accept_tos: bool,
     mut options: HashMap<&str, &str>,
-) {
+) -> usize {
     let device = options.remove("device").unwrap_or("px_9a");
     let split_apk = match options.remove("split_apk") {
         Some(val) if val == "1" || val.to_lowercase() == "true" => true,
@@ -81,7 +81,7 @@ pub async fn download_apps(
 
     let mp = Rc::new(MultiProgress::new());
     let gpa = Rc::new(gpa);
-    futures_util::stream::iter(
+    let results = futures_util::stream::iter(
         apps.into_iter().map(|app| {
             let (app_id, app_version) = app;
             let gpa = Rc::clone(&gpa);
@@ -91,47 +91,62 @@ pub async fn download_apps(
             let mp_log = Rc::clone(&mp);
 
             async move {
-                if app_version.is_none() {
-                    mp_log.suspend(|| println!("Downloading {}...", app_id));
-                    if sleep_duration > 0 {
-                        sleep(TokioDuration::from_millis(sleep_duration)).await;
+                if let Some(app_version) = app_version {
+                    mp_log.suspend(|| eprintln!("Specific versions can not be downloaded from Google Play ({}@{}). Skipping...", app_id, app_version));
+                    return false;
+                }
+                mp_log.suspend(|| println!("Downloading {}...", app_id));
+                if sleep_duration > 0 {
+                    sleep(TokioDuration::from_millis(sleep_duration)).await;
+                }
+                match gpa.download(&app_id, None, split_apk, include_dex_metadata, include_additional_files, Path::new(outpath), Some(&progress_wrapper(mp_dl1))).await {
+                    Ok(_) => {
+                        mp_log.suspend(|| println!("{} downloaded successfully!", app_id));
+                        true
                     }
-                    match gpa.download(&app_id, None, split_apk, include_dex_metadata, include_additional_files, Path::new(outpath), Some(&progress_wrapper(mp_dl1))).await {
-                        Ok(_) => mp_log.suspend(|| println!("{} downloaded successfully!", app_id)),
-                        Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
-                            mp_log.println(format!("File already exists for {}. Skipping...", app_id)).unwrap();
-                        }
-                        Err(err) if matches!(err.kind(), GpapiErrorKind::DirectoryExists) => {
-                            mp_log.println(format!("Split APK directory already exists for {}. Skipping...", app_id)).unwrap();
-                        }
-                        Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
-                            mp_log.println(format!("Invalid app response for {}. Skipping...", app_id)).unwrap();
-                        }
-                        Err(err) if matches!(err.kind(), GpapiErrorKind::PermissionDenied) => {
-                            mp_log.println(format!("Permission denied when attempting to write file for {}. Skipping...", app_id)).unwrap();
-                        }
-                        Err(_) => {
-                            mp_log.println(format!("An error has occurred attempting to download {}.  Retry #1...", app_id)).unwrap();
-                            match gpa.download(&app_id, None, split_apk, include_dex_metadata, include_additional_files, Path::new(outpath), Some(&progress_wrapper(mp_dl2))).await {
-                                Ok(_) => mp_log.suspend(|| println!("{} downloaded successfully!", app_id)),
-                                Err(_) => {
-                                    mp_log.println(format!("An error has occurred attempting to download {}.  Retry #2...", app_id)).unwrap();
-                                    match gpa.download(&app_id, None, split_apk, include_dex_metadata, include_additional_files, Path::new(outpath), Some(&progress_wrapper(mp_dl3))).await {
-                                        Ok(_) => mp_log.suspend(|| println!("{} downloaded successfully!", app_id)),
-                                        Err(_) => {
-                                            mp_log.println(format!("An error has occurred attempting to download {}. Skipping...", app_id)).unwrap();
-                                        }
+                    Err(err) if matches!(err.kind(), GpapiErrorKind::FileExists) => {
+                        mp_log.suspend(|| eprintln!("File already exists for {}. Skipping...", app_id));
+                        true
+                    }
+                    Err(err) if matches!(err.kind(), GpapiErrorKind::DirectoryExists) => {
+                        mp_log.suspend(|| eprintln!("Split APK directory already exists for {}. Skipping...", app_id));
+                        true
+                    }
+                    Err(err) if matches!(err.kind(), GpapiErrorKind::InvalidApp) => {
+                        mp_log.suspend(|| eprintln!("Could not download {}. The app may be paid, nonexistent, restricted to certain accounts, unavailable in this region, or incompatible with the selected device. Skipping...", app_id));
+                        false
+                    }
+                    Err(err) if matches!(err.kind(), GpapiErrorKind::PermissionDenied) => {
+                        mp_log.suspend(|| eprintln!("Permission denied when attempting to write file for {}. Skipping...", app_id));
+                        false
+                    }
+                    Err(_) => {
+                        mp_log.suspend(|| eprintln!("An error has occurred attempting to download {}.  Retry #1...", app_id));
+                        match gpa.download(&app_id, None, split_apk, include_dex_metadata, include_additional_files, Path::new(outpath), Some(&progress_wrapper(mp_dl2))).await {
+                            Ok(_) => {
+                                mp_log.suspend(|| println!("{} downloaded successfully!", app_id));
+                                true
+                            }
+                            Err(_) => {
+                                mp_log.suspend(|| eprintln!("An error has occurred attempting to download {}.  Retry #2...", app_id));
+                                match gpa.download(&app_id, None, split_apk, include_dex_metadata, include_additional_files, Path::new(outpath), Some(&progress_wrapper(mp_dl3))).await {
+                                    Ok(_) => {
+                                        mp_log.suspend(|| println!("{} downloaded successfully!", app_id));
+                                        true
+                                    }
+                                    Err(_) => {
+                                        mp_log.suspend(|| eprintln!("An error has occurred attempting to download {}. Skipping...", app_id));
+                                        false
                                     }
                                 }
                             }
                         }
                     }
-                } else {
-                    mp_log.println(format!("Specific versions can not be downloaded from Google Play ({}@{}). Skipping...", app_id, app_version.unwrap())).unwrap();
                 }
             }
         })
-    ).buffer_unordered(parallel).collect::<Vec<()>>().await;
+    ).buffer_unordered(parallel).collect::<Vec<bool>>().await;
+    results.into_iter().filter(|&success| !success).count()
 }
 
 pub async fn request_aas_token(
