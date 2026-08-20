@@ -197,8 +197,30 @@ fn load_config(ini_file: Option<PathBuf>) -> Result<Ini, Box<dyn Error>> {
     Ok(conf)
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    // Decoding Google Play protobuf responses recurses once per level of message
+    // nesting, and popular apps can return deeply nested listings.  On Windows the
+    // process main thread only gets a 1 MiB stack (vs. ~8 MiB on Linux), which some
+    // apps overflow, aborting with "thread 'main' has overflowed its stack".  Run the
+    // whole async runtime on a dedicated thread with a generous stack so the download
+    // succeeds regardless of the platform's default main-thread stack size.
+    const STACK_SIZE: usize = 64 * 1024 * 1024;
+    let main_thread = std::thread::Builder::new()
+        .name("apkeep-main".to_string())
+        .stack_size(STACK_SIZE)
+        .spawn(|| {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_stack_size(STACK_SIZE)
+                .build()
+                .expect("failed to build tokio runtime")
+                .block_on(run());
+        })
+        .expect("failed to spawn main worker thread");
+    main_thread.join().expect("main worker thread panicked");
+}
+
+async fn run() {
     let usage = {
         cli::app().render_usage()
     };
