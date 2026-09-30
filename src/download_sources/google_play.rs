@@ -147,7 +147,8 @@ pub async fn request_aas_token(
     match api.request_aas_token(oauth_token).await {
         Ok(()) => {
             let aas_token = api.get_aas_token().unwrap();
-            println!("AAS Token: {}", aas_token);
+            eprintln!("AAS Token:");
+            println!("{}", aas_token);
         },
         Err(_) => {
             println!("Error: was not able to retrieve AAS token with the provided OAuth token. Please provide new OAuth token and try again.");
