@@ -92,7 +92,7 @@ pub async fn download_apps(
 
             async move {
                 if app_version.is_none() {
-                    mp_log.suspend(|| println!("Downloading {}...", app_id));
+                    mp_log.suspend(|| println!("Downloading {} from Google Play...", app_id));
                     if sleep_duration > 0 {
                         sleep(TokioDuration::from_millis(sleep_duration)).await;
                     }
