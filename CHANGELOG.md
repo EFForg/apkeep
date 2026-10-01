@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-01
+- Add warnings and explicit flag requirement to download from APKPure
+- Make Googe Play the default download source
+- Remove Huawei AppGallery (nonworking)
+- Update dependencies
+
 ## [1.0.0] - 2026-04-29
 - Google Play:
   - Add the ability to download dex metadata for an app
