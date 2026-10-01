@@ -21,7 +21,7 @@ apkeep -e 'someone@gmail.com' --oauth-token oauth2_4/...
 An AAS token should be printed. You can use this to download an app:
 
 ```shell
-apkeep -a com.instagram.android -d google-play -e 'someone@gmail.com' -t some_aas_token .
+apkeep -a com.instagram.android -e 'someone@gmail.com' -t some_aas_token .
 ```
 
 ## Option 2: Using AUTH Token (for token dispensers)

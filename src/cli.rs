@@ -82,7 +82,7 @@ pub fn app() -> Command {
                 .help("Where to download the APKs from")
                 .short('d')
                 .long("download-source")
-                .default_value("apk-pure")
+                .default_value("google-play")
                 .action(ArgAction::Set)
                 .value_parser(EnumValueParser::<DownloadSource>::new())
                 .required(false),

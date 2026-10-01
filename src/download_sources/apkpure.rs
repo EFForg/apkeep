@@ -47,6 +47,14 @@ pub async fn download_apps(
     outpath: &Path,
     options: HashMap<&str, &str>,
 ) {
+    match options.get("acknowledge_dangers") {
+        Some(val) if *val == "1" || val.to_lowercase() == "true" => {},
+        _ => {
+            eprintln!("The dangers of using this download source must be explicitly acknowledged: https://github.com/EFForg/apkeep/blob/master/USAGE-apkpure.md");
+            std::process::exit(1);
+        }
+    }
+
     let mp = Rc::new(MultiProgress::new());
     let http_client = Rc::new(reqwest::Client::new());
     let app_arch = options.get("arch").cloned();

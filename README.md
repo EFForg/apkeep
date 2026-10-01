@@ -47,15 +47,11 @@ The simplest example is to download a single APK to the current directory:
 apkeep -a com.instagram.android .
 ```
 
-This downloads from the default source, APKPure, which does not require credentials. For more
-APKPure usage examples, such as specifying a package architecture, refer to the
-[`USAGE-apkpure.md`](USAGE-apkpure.md) document.
-
-To download directly from the google play store, you will first have to [obtain an AAS token](USAGE-google-play.md).
+To download directly from the default source, Google Play, you will first have to [obtain an AAS token](USAGE-google-play.md).
 Then,
 
 ```shell
-apkeep -a com.instagram.android -d google-play -e 'someone@gmail.com' -t aas_token .
+apkeep -a com.instagram.android -e 'someone@gmail.com' -t aas_token .
 ```
 
 For more google play usage examples, such as specifying a device configuration, timezone or
