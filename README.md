@@ -70,11 +70,7 @@ apkeep -a org.mozilla.fennec_fdroid -d f-droid .
 For more F-Droid usage examples, such as downloading from F-Droid mirrors or other F-Droid
 repositories, refer to the [`USAGE-fdroid.md`](USAGE-fdroid.md) document.
 
-Or, to download from the Huawei AppGallery:
-
-```shell
-apkeep -a com.elysiumlabs.newsbytes -d huawei-app-gallery .
-```
+You can also download from APKPure, but this should be used *only* for research purposes. Please see the [`USAGE-apkpure.md`](USAGE-apkpure.md) document.
 
 To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
 convention:
@@ -116,7 +112,6 @@ You can use this tool to download from a few distinct sources.
 * F-Droid (`-d f-droid`), a repository for free and open-source Android apps. `apkeep`
 verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
 was downloaded but could not be verified
-* The Huawei AppGallery (`-d huawei-app-gallery`), an app store popular in China
 
 ## Usage Note
 

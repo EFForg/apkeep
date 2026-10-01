@@ -5,7 +5,6 @@ pub enum DownloadSource {
     APKPure,
     GooglePlay,
     FDroid,
-    HuaweiAppGallery,
 }
 
 impl std::fmt::Display for DownloadSource {

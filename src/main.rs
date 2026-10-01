@@ -62,11 +62,7 @@
 //! For more F-Droid usage examples, such as downloading from F-Droid mirrors or other F-Droid
 //! repositories, refer to the [`USAGE-fdroid.md`](USAGE-fdroid.md) document.
 //!
-//! Or, to download from the Huawei AppGallery:
-//!
-//! ```shell
-//! apkeep -a com.elysiumlabs.newsbytes -d huawei-app-gallery .
-//! ```
+//! You can also download from APKPure, but this should be used *only* for research purposes. Please see the [`USAGE-apkpure.md`](USAGE-apkpure.md) document.
 //!
 //! To download a specific version of an APK (possible for APKPure or F-Droid), use the `@version`
 //! convention:
@@ -108,7 +104,6 @@
 //! * F-Droid (`-d f-droid`), a repository for free and open-source Android apps. `apkeep`
 //! verifies that these APKs are signed by the F-Droid maintainers, and alerts the user if an APK
 //! was downloaded but could not be verified
-//! * The Huawei AppGallery (`-d huawei-app-gallery`), an app store popular in China
 //!
 //! # Usage Note
 //!
@@ -143,7 +138,6 @@ mod download_sources;
 use download_sources::google_play;
 use download_sources::fdroid;
 use download_sources::apkpure;
-use download_sources::huawei_app_gallery;
 
 type CSVList = Vec<(String, Option<String>)>;
 fn fetch_csv_list(csv: &str, field: usize, version_field: Option<usize>) -> Result<CSVList, Box<dyn Error>> {
@@ -276,9 +270,6 @@ async fn main() {
             DownloadSource::FDroid => {
                 fdroid::list_versions(list, options).await;
             }
-            DownloadSource::HuaweiAppGallery => {
-                huawei_app_gallery::list_versions(list).await;
-            }
         }
     } else {
         let parallel = matches.get_one::<usize>("parallel").map(|v| *v).unwrap();
@@ -397,9 +388,6 @@ async fn main() {
                     &outpath.unwrap(),
                     options,
                 ).await;
-            }
-            DownloadSource::HuaweiAppGallery => {
-                huawei_app_gallery::download_apps(list, parallel, sleep_duration, &outpath.unwrap()).await;
             }
         }
     }
