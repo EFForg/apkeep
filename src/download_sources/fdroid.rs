@@ -342,41 +342,35 @@ fn parse_json_for_download_information(index: Value, apps: Vec<(String, Option<S
             },
             Some(Value::Object(app_object)) => {
                 if let Some(Value::Object(versions)) = app_object.get("versions") {
-                    let mut latest_version = 0;
-                    let mut filename = String::new();
-                    let mut hash = String::new();
+                    let mut latest: Option<(u64, &str, &str)> = None;
                     for (_, version_value) in versions {
                         if let Value::Object(version) = version_value {
                             if let (Some(Value::Object(manifest)), Some(Value::Object(file))) = (version.get("manifest"), version.get("file")) {
                                 if let (Some(Value::String(name)), Some(Value::String(sha256))) = (file.get("name"), file.get("sha256")) {
-                                    if app_version.is_some() {
-                                        if let Some(Value::String(version_name)) = manifest.get("versionName") {
-                                            if version_name == app_version.as_ref().unwrap() {
-                                                if let Ok(sha256) = hex::decode(sha256.to_string()) {
-                                                    return Some((app_id, app_version, name.to_string(), sha256));
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        if let Some(Value::Number(version_code_number)) = manifest.get("versionCode") {
-                                            if let Some(version_code) = version_code_number.as_u64() {
-                                                if version_code > latest_version {
-                                                    latest_version = version_code;
-                                                    filename = name.to_string();
-                                                    hash = sha256.to_string();
-                                                }
-                                            }
+                                    let version_matches = app_version.is_none() || manifest.get("versionName").and_then(Value::as_str) == app_version.as_deref();
+                                    // An entry without nativecode has no native libraries and runs on every ABI.
+                                    let arch_matches = match (&app_arch, manifest.get("nativecode")) {
+                                        (Some(arch), Some(Value::Array(nativecode_array))) => nativecode_array.iter().any(|value| value.as_str() == Some(arch.as_str())),
+                                        _ => true,
+                                    };
+                                    if let Some(version_code) = manifest.get("versionCode").and_then(Value::as_u64) {
+                                        if version_matches && arch_matches && latest.map_or(true, |(latest_code, _, _)| version_code > latest_code) {
+                                            latest = Some((version_code, name, sha256));
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                    if app_version.is_none() {
+                    if let Some((_, filename, hash)) = latest {
                         if let Ok(hash) = hex::decode(hash) {
-                            return Some((app_id, app_version, filename, hash));
+                            return Some((app_id, app_version, filename.to_string(), hash));
                         }
                     }
+                    let version_str = app_version.as_ref().map_or("".to_string(), |x| format!(" version {}", x));
+                    let arch_str = app_arch.as_ref().map_or("".to_string(), |x| format!(" arch {}", x));
+                    mp_log.println(format!("Could not find {}{}{}. Skipping...", app_id, version_str, arch_str)).unwrap();
+                    return None;
                 }
             },
             _ => mp_log.println(format!("Could not find {} in package list. Skipping...", app_id)).unwrap(),
@@ -734,4 +728,42 @@ async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<Multi
         }
     }
     files
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn index_v2_selection_honours_arch_and_picks_highest_version_code() {
+        let version = |app: &str, code: u64, name: &str, nativecode: Option<Value>| {
+            let mut manifest = json!({"versionCode": code, "versionName": name});
+            if let Some(nativecode) = nativecode {
+                manifest["nativecode"] = nativecode;
+            }
+            json!({"file": {"name": format!("/{}_{}.apk", app, code), "sha256": "00"}, "manifest": manifest})
+        };
+        let index = json!({
+            "repo": {"address": "https://f-droid.org/repo"},
+            "packages": {
+                "app": {"versions": {
+                    "0a": version("app", 5, "1.0", Some(json!(["armeabi-v7a"]))),
+                    "0b": version("app", 6, "1.0", Some(json!(["arm64-v8a"]))),
+                    "0c": version("app", 8, "1.0", Some(json!(["x86_64"]))),
+                    "0d": version("app", 4, "0.9", Some(json!(["arm64-v8a"]))),
+                }},
+                "java": {"versions": {"0e": version("java", 3, "2.0", None)}},
+            },
+        });
+        let select = |app: &str, version: Option<&str>, arch: Option<&str>| {
+            let apps = vec![(app.to_string(), version.map(String::from))];
+            let (found, _) = parse_json_for_download_information(index.clone(), apps, arch.map(String::from), Rc::new(MultiProgress::new())).unwrap();
+            found.into_iter().next().map(|(_, _, filename, _)| filename)
+        };
+        assert_eq!(select("app", Some("1.0"), Some("arm64-v8a")).as_deref(), Some("/app_6.apk"));
+        assert_eq!(select("app", None, Some("arm64-v8a")).as_deref(), Some("/app_6.apk"));
+        assert_eq!(select("app", None, None).as_deref(), Some("/app_8.apk"));
+        assert_eq!(select("app", Some("1.0"), Some("x86")), None);
+        assert_eq!(select("java", None, Some("arm64-v8a")).as_deref(), Some("/java_3.apk"));
+    }
 }
