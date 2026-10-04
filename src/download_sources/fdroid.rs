@@ -133,7 +133,7 @@ async fn retrieve_index_or_exit(options: &HashMap<&str, &str>, mp: Rc<MultiProgr
         match verify_and_return_json(&temp_dir, &files, &fingerprint, verify_index, use_entry, Rc::clone(&mp)) {
             Ok(json) => {
                 let index = if use_entry {
-                    match verify_and_return_index_from_entry(&temp_dir, &repo, &json, verify_index, mp, output_format.clone()).await {
+                    match verify_and_return_index_from_entry(&repo, &json, verify_index, mp, output_format.clone()).await {
                         Ok(index_from_entry) => {
                             index_from_entry
                         }
@@ -586,7 +586,7 @@ fn verify_and_return_json(dir: &TempDir, files: &[String], fingerprint: &[u8], v
     Ok(String::from(std::str::from_utf8(&json_file_data)?))
 }
 
-async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &str, verify_index: bool, mp: Rc<MultiProgress>, output_format: OutputFormat) -> Result<String, Box<dyn Error>> {
+async fn verify_and_return_index_from_entry(repo: &str, json: &str, verify_index: bool, mp: Rc<MultiProgress>, output_format: OutputFormat) -> Result<String, Box<dyn Error>> {
     let mp_log = Rc::clone(&mp);
     let (index_name, index_sha256) = match serde_json::from_str::<Value>(json) {
         Ok(entry) => {
@@ -604,17 +604,9 @@ async fn verify_and_return_index_from_entry(dir: &TempDir, repo: &str, json: &st
         }
     };
     let index_url = format!("{}/{}", repo, index_name);
-    let mut dl = AsyncDownload::new(&index_url, dir.path(), &index_name).get().await.unwrap();
-    let length = dl.length();
-    let cb = match length {
-        Some(length) => Some(progress_wrapper(mp)(index_name.to_string(), length)),
-        None => None,
-    };
-    match dl.download(&cb).await {
-        Ok(_) => {
+    match download_to_memory(&index_url, &index_name, mp).await {
+        Ok(index_file_data) => {
             mp_log.println(format!("Package index downloaded successfully!")).unwrap();
-            let index_file = dir.path().join(index_name);
-            let index_file_data = fs::read(index_file)?;
 
             if verify_index {
                 mp_log.println("Verifying...").unwrap();
@@ -670,6 +662,22 @@ fn get_signed_data_from_cert_file(signature_block_file: PathBuf) -> Result<Signe
     }
 }
 
+/// Downloads `url` into memory. `AsyncDownload` returns before its last write reaches the file,
+/// so a file read straight after its download can come up short.
+async fn download_to_memory(url: &str, name: &str, mp: Rc<MultiProgress>) -> Result<Vec<u8>, Box<dyn Error>> {
+    let response = reqwest::get(url).await?.error_for_status()?;
+    let cb = response.content_length().map(|length| progress_wrapper(mp)(name.to_string(), length));
+    let mut data = vec![];
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        data.extend_from_slice(&chunk?);
+        if let Some(cb) = &cb {
+            cb(data.len() as u64);
+        }
+    }
+    Ok(data)
+}
+
 async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<MultiProgress>, use_entry: bool, output_format: OutputFormat) -> Vec<String> {
     let mp_log = Rc::clone(&mp);
     mp_log.suspend(|| println!("Downloading F-Droid package repository..."));
@@ -679,18 +687,10 @@ async fn download_and_extract_to_tempdir(dir: &TempDir, repo: &str, mp: Rc<Multi
     } else {
         format!("{}/index-v1.jar", repo)
     };
-    let jar_local_file = "jar.zip";
-    let mut dl = AsyncDownload::new(&fdroid_jar_url, dir.path(), jar_local_file).get().await.unwrap();
-    let length = dl.length();
-    let cb = match length {
-        Some(length) => Some(progress_wrapper(mp)(jar_local_file.to_string(), length)),
-        None => None,
-    };
-    match dl.download(&cb).await {
-        Ok(_) => {
+    match download_to_memory(&fdroid_jar_url, "jar.zip", mp).await {
+        Ok(jar) => {
             mp_log.suspend(|| println!("Package repository downloaded successfully!\nExtracting..."));
-            let file = fs::File::open(dir.path().join(jar_local_file)).unwrap();
-            match zip::ZipArchive::new(file) {
+            match zip::ZipArchive::new(io::Cursor::new(jar)) {
                 Ok(mut archive) => {
                     for i in 0..archive.len() {
                         let mut file = archive.by_index(i).unwrap();
