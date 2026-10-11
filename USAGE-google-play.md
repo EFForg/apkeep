@@ -4,15 +4,24 @@ To download directly from the Google Play Store, you have two authentication opt
 
 First, obtain an OAuth token by visiting the Google [embedded setup page](https://accounts.google.com/EmbeddedSetup) and:
 
-- Open the browser debugging console to the `Network` tab
-- Log in
-- If the "Google Terms of Services" pop up, click `I agree` (there may be some delay afterwards)
-- Select the last request from `accounts.google.com` in the `Network` tab
-- Select the `Cookies` tab of this request
-- One of the response cookies is `oauth_token`
-- Copy the `value` field (it will start with `oauth2_4/`)
+**Method 1: Using Network tab (recommended)**
+1. Open the browser debugging console (F12 or Ctrl+Shift+I) and go to the `Network` tab
+2. Log in to your Google account
+3. If the "Google Terms of Services" pop up, click `I agree` (there may be some delay afterwards)
+4. Select the last request from `accounts.google.com` in the `Network` tab
+5. Select the `Cookies` tab of this request
+6. One of the response cookies is `oauth_token`
+7. Copy the `value` field (it will start with `oauth2_4/`)
 
-It can only be used once, in order to obtain the AAS token which can be used subsequently. To obtain this token:
+**Method 2: Using Application tab (alternative)**
+1. Open the browser debugging console and go to the `Application` tab
+2. In the left sidebar, expand `Cookies` → `https://accounts.google.com`
+3. Find and select `oauth_token` cookie
+4. Copy the `Value` field (it will start with `oauth2_4/`)
+
+> **Note:** The OAuth token can only be used once, in order to obtain the AAS token which can be used subsequently. Do not enclose the token in quotes when passing it to apkeep.
+
+To obtain the AAS token:
 
 ```shell
 apkeep -e 'someone@gmail.com' --oauth-token oauth2_4/...
