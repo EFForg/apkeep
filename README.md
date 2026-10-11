@@ -28,6 +28,32 @@ If using on an Android platform, [`termux`](https://termux.org/) must be install
 Upgrade to the latest packages with `pkg update`, then install the `apkeep` precompiled binary
 as described above or run `pkg install apkeep` to install from the `termux` repository.
 
+### Android (Termux) Installation
+
+For Android users, follow these steps:
+
+1. Install [`Termux`](https://termux.org/) from F-Droid or GitHub releases (not Google Play, which is outdated).
+2. Open Termux and update packages:
+   ```shell
+   pkg update && pkg upgrade
+   ```
+3. Grant storage access (for non-rooted devices):
+   ```shell
+   termux-setup-storage
+   ```
+4. Install `apkeep`:
+   ```shell
+   pkg install apkeep
+   ```
+5. Usage examples:
+   ```shell
+   # Download to internal storage
+   apkeep -a com.instagram.android ~/storage/shared/
+
+   # Download from Google Play (requires AAS token config)
+   apkeep -a com.instagram.android -d google-play -i ~/storage/shared/apkeep/config/AAS_token.ini ~/storage/shared/apkeep/
+   ```
+
 Docker images are also available through the GitHub Container Registry. Aside from using a
 specific release version, the following floating tags are available:
 
