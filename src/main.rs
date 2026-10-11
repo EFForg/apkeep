@@ -328,6 +328,14 @@ async fn main() {
                     });
 
                     if email.is_none() || (aas_token.is_none() && auth_token.is_none()) {
+                        // Check environment variables before config file
+                        if email.is_none() {
+                            email = std::env::var("GOOGLE_EMAIL").ok();
+                        }
+                        if aas_token.is_none() && auth_token.is_none() {
+                            aas_token = std::env::var("GOOGLE_AAS_TOKEN").ok();
+                            auth_token = std::env::var("GOOGLE_AUTH_TOKEN").ok();
+                        }
                         if let Ok(conf) = load_config(ini_file) {
                             if email.is_none() {
                                 email = conf.get("google", "email");
