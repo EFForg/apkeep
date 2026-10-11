@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [1.1.0] - 2026-10-01
 - Add warnings and explicit flag requirement to download from APKPure
-- Make Googe Play the default download source
+- Make Google Play the default download source
 - Remove Huawei AppGallery (nonworking)
 - Update dependencies
 
