@@ -1,2 +1,33 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Swap files
 *.swp
-/target
+*.swo
+*~
+
+# APK files
+*.apk
+*.xapk
+*.json
+
+# Download directories
+downloads/
+output/
+cache/
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# Test files
+test_helpers.sh
+
+# Temporary files
+*.tmp
+*.log
