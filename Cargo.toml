@@ -1,36 +1,36 @@
 [package]
-name = "apkeep"
-version = "1.1.0"
-authors = ["William Budington <bill@eff.org>"]
-edition = "2021"
+name = "gpapi"
+version = "6.1.0"
+authors = ["Bill Budington <bill@eff.org>"]
+build = "build.rs"
 license = "MIT"
-description = "A command-line tool for downloading APK files from various sources"
-homepage = "https://github.com/EFForg/apkeep"
-repository = "https://github.com/EFForg/apkeep"
+edition = "2021"
+description = "A library for interacting with the Google Play API"
+homepage = "https://github.com/EFForg/rs-google-play/tree/master/gpapi"
+repository = "https://github.com/EFForg/rs-google-play/tree/master/gpapi"
+
+[lib]
+doctest = false
+path = "src/lib.rs"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.13", features = ["stream"] }
-futures-util = { version = "0.3", features = ["io"] }
-regex = "1.13"
-clap = { version = "4", features = ["derive"] }
-gpapi = "6"
-tokio-dl-stream-to-disk = { version = "1", features = ["sha256sum"] }
-tempfile = "3"
-dirs = "6"
-zip = "8"
-cryptographic-message-syntax = "0.28"
-ring = "0.17"
-x509-certificate = "0.25"
-simple-error = "0.3"
-sha1 = "0.11"
-sha2 = "0.11"
-base64 = "0.22"
-serde_json = "1"
-hex = "0.4"
-configparser = "3"
+prost = "0.14"
+reqwest = { version = "0.13", features = ["native-tls-no-alpn"] }
+bytes = "1"
+googleplay-protobuf = "3"
+bincode = "2"
+futures = "0.3"
+tokio-dl-stream-to-disk = "1"
 serde = { version = "1", features = ["derive"] }
-indicatif = "0.18"
+configparser = "3"
 
 [build-dependencies]
-clap = { version = "4", features = ["derive"] }
+googleplay-protobuf = "3"
+prost = "0.14"
+bincode = "2"
+configparser = "3"
+serde = { version = "1", features = ["derive"] }
+bytes = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
