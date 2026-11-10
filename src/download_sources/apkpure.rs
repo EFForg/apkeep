@@ -21,7 +21,7 @@ fn http_headers(options: &HashMap<&str, &str>) -> HeaderMap {
     headers.insert("x-sv", HeaderValue::from_static("29"));
     let arch = match options.get("arch"){
         Some(arch) => {
-            arch.split(";").collect::<Vec<_>>().join(",")
+            arch.split(";").collect::<Vec<_>>().join(", ")
         },
         None => "arm64-v8a,armeabi-v7a,armeabi,x86,x86_64".to_string()
     };
