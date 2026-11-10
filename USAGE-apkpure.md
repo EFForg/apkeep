@@ -10,6 +10,8 @@ More options can be passed with the `-o` option. For instance, download a specif
 apkeep -a com.instagram.android -d apk-pure -o 'acknowledge_dangers=true,arch=x86' .
 ```
 
+When an architecture is specified, `apkeep` checks which architectures each available download actually contains, and downloads one containing the architecture specified. If no version is specified and the latest version is not available for this architecture, the latest version which is available for it will be downloaded.
+
 To specify multiple architectures, separate the `arch=` specification with a semicolon. The following shows the default `arch` option:
 
 ```shell
