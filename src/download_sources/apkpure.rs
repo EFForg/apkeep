@@ -120,7 +120,12 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
             let variant = match variant_selector {
                 Some((http_client, arch, app_version)) => {
                     match select_variant(http_client, &body, arch, app_version).await {
-                        VariantSelection::Found(apk_xapk, download_url) => Some((apk_xapk, download_url)),
+                        VariantSelection::Found(apk_xapk, download_url, version) => {
+                            if let Some(version) = version {
+                                mp_log.suspend(|| println!("The latest version of {} does not contain the specified arch, downloading version {}...", app_string, version));
+                            }
+                            Some((apk_xapk, download_url))
+                        },
                         VariantSelection::Unknown => None,
                         VariantSelection::NotAvailable => {
                             mp_log.println(format!("Could not find a download containing the specified arch for {}. Skipping...", app_string)).unwrap();
@@ -194,7 +199,8 @@ async fn download_from_response(response: Response, re: Box<dyn Deref<Target=Reg
 }
 
 enum VariantSelection {
-    Found(String, String),
+    // the download type and URL, and the version if it is not the latest one
+    Found(String, String, Option<String>),
     NotAvailable,
     Unknown,
 }
@@ -210,48 +216,53 @@ async fn select_variant(http_client: &reqwest::Client, body: &str, arch: &str, a
         let version = caps.get(1).unwrap();
         (caps.get(0).unwrap().start(), caps.get(0).unwrap().end(), version.as_str())
     }).collect();
-    let app_version = match app_version.or(versions.first().map(|version| version.2)) {
-        Some(app_version) => app_version,
-        None => return VariantSelection::Unknown,
-    };
 
-    let mut variants: Vec<(String, String)> = Vec::new();
+    // Group the variants by version, in the order they are listed (latest version first)
+    let mut version_variants: Vec<(&str, Vec<(String, String)>)> = Vec::new();
     for (i, (_, end, version)) in versions.iter().enumerate() {
-        if *version != app_version {
+        if app_version.is_some_and(|app_version| app_version != *version) {
             continue;
         }
         let next_start = versions.get(i + 1).map_or(body.len(), |next| next.0);
         if let Some(caps) = url_re.captures(&body[*end..next_start]) {
             let variant = (caps.get(1).unwrap().as_str().to_string(), caps.get(2).unwrap().as_str().to_string());
-            if !variants.contains(&variant) {
-                variants.push(variant);
+            match version_variants.iter_mut().find(|(v, _)| v == version) {
+                Some((_, variants)) => {
+                    if !variants.contains(&variant) {
+                        variants.push(variant);
+                    }
+                },
+                None => version_variants.push((version, vec![variant])),
             }
         }
     }
-    if variants.is_empty() {
+    if version_variants.is_empty() {
         return VariantSelection::Unknown;
     }
 
-    let mut variants_abis = Vec::new();
-    for (_, download_url) in &variants {
-        variants_abis.push(remote_abis(http_client, download_url).await);
-    }
-    for abi in arch.split(";").map(|abi| abi.trim()) {
-        for (variant, abis) in variants.iter().zip(&variants_abis) {
-            match abis {
-                // a variant without native code runs on any architecture
-                Some(abis) if abis.is_empty() || abis.contains(abi) => {
-                    return VariantSelection::Found(variant.0.clone(), variant.1.clone());
-                },
-                _ => {}
+    // If no version was specified, the latest version containing the architecture is chosen
+    for (version, variants) in &version_variants {
+        let mut variants_abis = Vec::new();
+        for (_, download_url) in variants {
+            variants_abis.push(remote_abis(http_client, download_url).await);
+        }
+        for abi in arch.split(";").map(|abi| abi.trim()) {
+            for (variant, abis) in variants.iter().zip(&variants_abis) {
+                match abis {
+                    // a variant without native code runs on any architecture
+                    Some(abis) if abis.is_empty() || abis.contains(abi) => {
+                        let version = if *version == version_variants[0].0 { None } else { Some(version.to_string()) };
+                        return VariantSelection::Found(variant.0.clone(), variant.1.clone(), version);
+                    },
+                    _ => {}
+                }
             }
         }
+        if variants_abis.iter().any(|abis| abis.is_none()) {
+            return VariantSelection::Unknown;
+        }
     }
-    if variants_abis.iter().any(|abis| abis.is_none()) {
-        VariantSelection::Unknown
-    } else {
-        VariantSelection::NotAvailable
-    }
+    VariantSelection::NotAvailable
 }
 
 struct RemoteZipEntry {
